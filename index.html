@@ -1,11 +1,23 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><style>body{margin:0}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style></head><body>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ゴルフ打数">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#ECEEE7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111310" media="(prefers-color-scheme: dark)">
+<style>body{margin:0}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<script>if("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 <title>ゴルフ打数カウンター</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+</head><body>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" crossorigin="anonymous">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" crossorigin="anonymous"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sofia+Sans+Extra+Condensed:wght@600;800;900&family=BIZ+UDPGothic:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sofia+Sans+Extra+Condensed:wght@600;800;900&family=BIZ+UDPGothic:wght@400;700&display=swap" crossorigin="anonymous">
 <style>
 /* Layout: phone-first single column. A printed mini scorecard on top, the giant stroke number in the middle,
    big action slabs in the thumb zone. Each colour has one job:
@@ -179,6 +191,7 @@ h1{margin:0;font-size:15px;font-weight:700}
 .banner{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--amber-soft);border-radius:10px;padding:10px 12px;font-size:13px}
 .banner b{color:var(--amber)}
 .banner span{min-width:0}
+.banner .btn{flex:none;white-space:nowrap}
 .sec{font-size:13px;color:var(--muted);margin:6px 0 8px;font-weight:700}
 .rlist{list-style:none;margin:0;padding:0;background:var(--paper);border:1.5px solid var(--graphite)}
 .rlist li{display:flex;align-items:center;gap:10px;padding:10px 12px}
@@ -335,6 +348,60 @@ h1{margin:0;font-size:15px;font-weight:700}
 .shotlist{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px}
 .shotlist div{display:flex;gap:10px;align-items:baseline}
 .shotlist b{font-family:var(--f-num);font-size:18px;margin-left:auto}
+/* goal pace, where strokes went, round recap */
+.runsum .pc{display:block;font-size:12px;font-weight:700;color:var(--graphite)}
+.runsum .pc.warn{color:var(--amber)}
+.pace{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:2px 8px;font-size:12px;color:var(--muted);margin-top:-4px}
+.pace .pg{font-weight:700;color:var(--on-flag);background:var(--flag);border-radius:999px;padding:0 8px;line-height:1.6}
+.pace b{font-family:var(--f-num);font-weight:800;font-size:17px;color:var(--graphite);margin:0 2px}
+.goalseg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.goalseg button,.gchip{appearance:none;border:1px solid var(--rule);background:var(--ground);border-radius:8px;padding:10px 4px;font-weight:700;font-size:14px;cursor:pointer;color:var(--graphite)}
+.goalseg button[aria-pressed="true"],.gchip[aria-pressed="true"]{background:var(--graphite);color:var(--paper);border-color:var(--graphite)}
+.goalrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.goalrow .gchip{padding:6px 10px;font-size:12px}
+.badges{display:flex;flex-wrap:wrap;gap:6px}
+.badge{font-size:13px;font-weight:700;padding:3px 12px;border-radius:999px;background:var(--ground);color:var(--graphite);border:1px solid var(--rule)}
+.badge.flag{background:var(--flag);color:var(--on-flag);border-color:var(--flag)}
+.badge.miss{background:var(--amber-soft);color:var(--amber);border-color:var(--amber-soft)}
+h3.sub{margin:0;font-size:14px}
+.loss{display:flex;flex-direction:column;gap:8px}
+.lossbar{display:flex;gap:2px;height:14px;border-radius:7px;overflow:hidden;background:var(--ground)}
+.lossbar i{display:block}
+.lossrow{display:grid;grid-template-columns:12px 1fr auto;gap:8px;align-items:center;font-size:14px;font-weight:700}
+.lossrow .sw{width:12px;height:12px;border-radius:3px}
+.lossrow small{display:block;font-size:11px;font-weight:400;color:var(--muted);line-height:1.35}
+.lossrow b{font-family:var(--f-num);font-weight:800;font-size:24px}
+.ifs{display:flex;flex-direction:column;gap:6px;font-size:13px}
+.ifs div{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.ifs b{font-family:var(--f-num);font-weight:800;font-size:20px;white-space:nowrap}
+.ifs .hit{display:inline-block;color:var(--on-flag);background:var(--flag);border-radius:999px;padding:0 8px;font-size:11px;font-weight:700;margin-left:4px}
+.bw{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bw div{background:var(--ground);border-radius:10px;padding:8px 10px;font-size:12px;color:var(--muted)}
+.bw b{display:block;font-size:15px;color:var(--graphite)}
+.sc.withgoal .sc-labels,.sc.withgoal .sc-col{grid-template-rows:26px 26px 22px 42px 30px 26px}
+.sc-col > span.g{font-size:14px;font-weight:600;color:var(--muted)}
+.sc-col > span.g.ok{color:var(--graphite);font-weight:800}
+/* distance extras, share image, notices */
+.elev{display:flex;flex-wrap:wrap;gap:2px 14px;align-items:baseline;font-size:13px;color:var(--muted)}
+.elev b{font-family:var(--f-num);font-weight:800;font-size:24px;color:var(--graphite);margin:0 3px}
+.attr{font-size:10px;color:var(--muted)}
+.attr a{color:inherit}
+.clubrow input{width:68px;font:inherit;font-size:16px;padding:4px 6px;border:1px solid var(--rule);border-radius:6px;background:var(--ground);color:var(--graphite);text-align:right}
+.shv{position:fixed;inset:0;z-index:35;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:calc(12px + env(safe-area-inset-top,0px)) 16px calc(12px + env(safe-area-inset-bottom,0px))}
+.shbox{background:var(--paper);border-radius:18px;padding:14px;max-width:420px;width:100%;max-height:100%;display:flex;flex-direction:column;gap:10px;overflow:auto}
+.shbox img{width:100%;height:auto;border:1px solid var(--rule);border-radius:8px}
+.info{background:var(--paper);border:1px solid var(--rule);border-left:4px solid var(--flag);border-radius:10px;padding:10px 12px;font-size:13px;display:flex;flex-direction:column;gap:6px}
+.info b{font-size:14px}
+.info p{margin:0;color:var(--muted)}
+.eff{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--muted)}
+.eff > b{font-size:14px;color:var(--graphite)}
+.eff .num{font-family:var(--f-num);font-weight:800;font-size:18px;color:var(--graphite)}
+.eff .good{color:var(--graphite);font-weight:700}
+.hist{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;color:var(--muted);text-align:center}
+.hist .memo{color:var(--graphite);font-weight:700;font-size:13px}
+.memoform{display:flex;gap:6px;width:100%}
+.memoform input{flex:1;min-width:0;font:inherit;font-size:16px;padding:8px 10px;border:1px solid var(--rule);border-radius:8px;background:var(--paper);color:var(--graphite)}
+.vtheme{display:inline-block;font-size:11px;font-weight:700;padding:0 6px;border-radius:999px;background:var(--ground);border:1px solid var(--rule);margin-left:4px}
 @media (prefers-reduced-motion: reduce){.tick,.m.new{animation:none}.toast{transition:none}.slab:active{transform:none}}
 </style>
 
@@ -356,6 +423,9 @@ h1{margin:0;font-size:15px;font-weight:700}
 <div class="xfer" id="xfer" hidden></div>
 <div class="swv" id="swv" hidden></div>
 <div class="geo" id="geo" hidden><div id="map"></div><div class="geo-top"><button class="pill" data-act="closegeo">閉じる</button><span class="holepill" id="geoHole"></span></div><div class="geo-panel" id="geoPanel"></div></div>
+<div class="shv" id="shv" hidden></div>
+<div class="shv" id="half" hidden></div>
+<div class="scrim" id="ask" hidden></div>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
@@ -364,13 +434,14 @@ h1{margin:0;font-size:15px;font-weight:700}
   const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const DOW = ["日","月","火","水","木","金","土"];
   const pad = n => String(n).padStart(2,"0");
-  const todayKey = () => { const d = new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); };
+  const todayKeyOf = ms => { const d = new Date(ms); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); };
+  const todayKey = () => todayKeyOf(Date.now());
   const fmtDate = k => { const [y,m,d] = k.split("-").map(Number); return m+"/"+d+"("+DOW[new Date(y,m-1,d).getDay()]+")"; };
   const KEY = "golf-counter-v1";
 
   let rounds = {}, curId = null, pending = [];
-  let tab = "play", sheet = null, undo = [], showNew = false, confirmDel = null, transfer = false, fresh = false;
-  let nfStart = 1, nfDraft = { date: todayKey(), course: "" };
+  let tab = "play", sheet = null, undo = [], showNew = false, confirmDel = null, transfer = false, fresh = false, halfOpen = false, ask = null, countForce = false, memoEdit = false;
+  let nfStart = 1, nfGoal, nfDraft = { date: todayKey(), course: "" };
   let db = null, wakeOn = false, wl = null;
 
   // ---------- golf logic ----------
@@ -468,19 +539,22 @@ h1{margin:0;font-size:15px;font-weight:700}
   }
 
   // ---------- actions ----------
-  function newRound(date, course, start){
+  function newRound(date, course, start, goal){
     const id = "r" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
     const prev = course ? Object.values(rounds).filter(x => x.course === course).sort((a,b) => (b.createdAt||0) - (a.createdAt||0))[0] : null;
     const holes = Array.from({ length: 18 }, (_, i) => ({ par: prev ? prev.holes[i].par : 4, on:0, putts:0, ob:0, pen:0, done:false, log:[] }));
     const now = Date.now();
-    rounds[id] = { id, date, course, start, pos:0, holes, finished:false, transferred:false, tpos:0, createdAt:now, updatedAt:now };
+    rounds[id] = { id, date, course, start, pos:0, holes, finished:false, transferred:false, tpos:0, goal: goal || 0, createdAt:now, updatedAt:now };
     curId = id; undo = []; tab = "play"; showNew = false; nfDraft = { date: todayKey(), course: "" };
+    extra.goal = goal || 0; saveExtra();
+    try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); }catch(e){}
     touch(rounds[id]); render();
     toast(prev ? "パーは前回の" + course + "から引き継ぎました" : "ラウンド開始。パーはホールごとに選べます");
   }
   function count(kind){
     const r = cur(); if(!r || r.finished) return;
     const hi = holeIdx(r), h = r.holes[hi];
+    if(kind === "shot" && !countForce && h.putts > 0){ const tr = trailOf(h); if(tr[tr.length - 1] === "P"){ ask = { hi }; renderAsk(); return; } }
     undo.push({ rid: r.id, hi, h: snapHole(h) });
     if(undo.length > 60) undo.shift();
     if(!Array.isArray(h.log) || h.log.length !== strokes(h)) h.log = trailOf(h).slice();
@@ -500,7 +574,7 @@ h1{margin:0;font-size:15px;font-weight:700}
     Object.assign(r.holes[u.hi], u.h); touch(r); render(); toast("1つ戻しました");
   }
   function go(i){
-    const r = cur(); if(!r) return;
+    const r = cur(); if(!r) return; memoEdit = false;
     if(r.finished){ openSheet(i, "edit"); return; }
     const p = orderOf(r.start).indexOf(i);
     if(p === r.pos) return;
@@ -521,9 +595,36 @@ h1{margin:0;font-size:15px;font-weight:700}
     if(s.others && s.others.length) h.others = s.others.slice();
     if(changed) h.log = null;
     const sc = s.on + s.putts;
-    if(s.mode === "out"){ if(r.pos < 17){ r.pos++; undo = []; } else { r.finished = true; } }
+    if(s.mode === "out") advance(r, true);
     sheet = null; touch(r); render();
     toast((s.hi + 1) + "番 " + sc + "打（" + scoreName(sc, h.par) + "）" + (r.finished && s.mode === "out" ? "　ラウンド終了です" : ""));
+  }
+  // next hole in playing order; the half-time review opens once when the first nine are done
+  function advance(r, openHalf){
+    memoEdit = false;
+    if(r.pos < 17){ r.pos++; undo = []; } else { r.finished = true; }
+    if(r.pos === 9 && !r.finished && !r.halfSeen){ r.halfSeen = true; if(openHalf) halfOpen = true; }
+  }
+  function askNext(){
+    const r = cur(); if(!r || !ask) return;
+    const h = r.holes[ask.hi], sc = strokes(h), last = r.pos >= 17;
+    h.done = true; ask = null; advance(r, false); touch(r);
+    if(last){ render(); toast(`${r.holes.indexOf(h) + 1}番 ${sc}打（${scoreName(sc, h.par)}）でラウンド終了です`); return; }
+    count("shot");
+    toast(`前のホールを${sc}打（${scoreName(sc, h.par)}）でホールアウト。${holeIdx(r) + 1}番の1打目を数えました`);
+  }
+  function renderAsk(){
+    const el = $("ask"), r = cur();
+    if(!ask || !r || r.finished){ el.hidden = true; el.innerHTML = ""; return; }
+    const h = r.holes[ask.hi], sc = strokes(h), last = r.pos >= 17, nx = last ? -1 : orderOf(r.start)[r.pos + 1];
+    el.hidden = false;
+    el.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="askT">
+      <div class="sh-top">${pin(ask.hi, true)}<h3 id="askT">ホールアウトを忘れていませんか？</h3></div>
+      <p class="xnote">${ask.hi + 1}番は、パットのあとに「ショット」が押されました。</p>
+      <button class="btn ink full" data-act="asknext">${last ? `${ask.hi + 1}番を${sc}打でホールアウトして、ラウンド終了` : `${ask.hi + 1}番を${sc}打でホールアウトして、${nx + 1}番の1打目を数える`}</button>
+      <button class="btn full" data-act="askshot">${ask.hi + 1}番の続きとして数える（グリーンの外から打ったなど）</button>
+      <button class="linkish" data-act="askcancel">やめる</button>
+    </div>`;
   }
   function step(k, d){
     const s = sheet; if(!s) return;
@@ -538,7 +639,7 @@ h1{margin:0;font-size:15px;font-weight:700}
   function render(){
     document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", String(t.dataset.tab === tab)));
     if(tab === "play") renderPlay(); else if(tab === "card") renderCard(); else if(tab === "stats") renderStats(); else if(tab === "swing") renderSwing(); else renderList();
-    renderSheet(); renderTransfer();
+    renderSheet(); renderTransfer(); renderHalf(); renderAsk();
   }
   function miniCard(r){
     const curHi = r.finished ? -1 : holeIdx(r), ord = orderOf(r.start);
@@ -561,6 +662,7 @@ h1{margin:0;font-size:15px;font-weight:700}
     return `<div class="banner"><span><b>楽天に未転記</b>　${fmtDate(p.date)} ${esc(p.course)} ${totals(p).s}打</span><button class="btn sm" data-xfer="${p.id}">転記する</button></div>`;
   }
   function newForm(){
+    if(nfGoal === undefined) nfGoal = extra.goal != null ? extra.goal : suggestGoal();
     const courses = [...new Set(Object.values(rounds).map(r => r.course).filter(Boolean))];
     return `<form class="form" id="nf">
       <label for="nfDate">日付<input type="date" id="nfDate" value="${esc(nfDraft.date)}" required></label>
@@ -570,13 +672,16 @@ h1{margin:0;font-size:15px;font-weight:700}
         <button type="button" data-start="1" aria-pressed="${nfStart === 1}">OUT（1番から）</button>
         <button type="button" data-start="10" aria-pressed="${nfStart === 10}">IN（10番から）</button>
       </div></div>
+      <div class="flabel">目標スコア（ホールごとの目標打数と、ペースを出します）<div class="goalseg">
+        ${[0, ...GOALS].map(g => `<button type="button" data-goal="${g ? g - 1 : 0}" aria-pressed="${nfGoal === (g ? g - 1 : 0)}">${g ? g + "切り" : "なし"}</button>`).join("")}
+      </div></div>
       <button class="btn ink full" type="submit">ラウンドを始める</button>
     </form>`;
   }
   function renderPlay(){
     const m = $("main"), r = cur();
     if(!r){
-      m.innerHTML = `<section class="panel">
+      m.innerHTML = `${installHtml(true)}<section class="panel">
           <h2 class="lead">打つたびに、1回タップ</h2>
           <ol class="steps">
             <li><span><b>ショット</b>と<b>パット</b>をタップして数えます。OBや池は専用のボタンで罰打まで足します</span></li>
@@ -586,35 +691,35 @@ h1{margin:0;font-size:15px;font-weight:700}
         </section>${banner()}<section class="panel">${newForm()}</section>`;
       return;
     }
-    if(r.finished){
-      const t = totals(r), missing = r.holes.filter(h => !played(h)).length;
-      m.innerHTML = `<section class="panel">
-          <div class="fhead"><span>ラウンド終了</span><span>${esc(r.course || fmtDate(r.date))}</span></div>
-          <div class="bigtotal"><b>${t.s}</b><span class="${t.diff < 0 ? "under" : ""}">${diffStr(t.diff)}</span></div>
-          <div class="stats"><span>パット<b>${t.pt}</b></span><span>OB<b>${t.ob}</b></span><span>池など<b>${t.pen}</b></span></div>
-        </section>
-        ${miniCard(r)}
-        ${missing ? `<div class="cnote warn">${missing}ホールが未入力です。スコアカードのマスをタップすると入力できます</div>` : ""}
-        ${r.transferred ? `<div class="stats"><span class="st">楽天に転記済み</span></div>` : `<button class="btn ink full" data-act="xfer">楽天ゴルフスコアへ転記する</button>`}
-        <button class="btn full" data-tab="card">スコアカードを見る</button>
-        <button class="btn full" data-act="newform">新しいラウンドを始める</button>`;
-      return;
-    }
+    if(r.finished){ m.innerHTML = newsHtml() + recapHtml(r); return; }
     const hi = holeIdx(r), h = r.holes[hi], st = strokes(h), trail = trailOf(h);
     const t = totals(r, 0, 18, (x, i) => played(x) && i !== hi);
+    const pc = paceOf(r), tgt = pc ? pc.mp[hi] : null;
     let note = st === 0 ? "ティーショットを打ったら「ショット」をタップ" : h.putts > 0 ? `${h.on}オン ${h.putts}パット` : `ここまで ${st}打`, warn = false;
+    if(tgt != null){
+      if(st === 0) note = `このホールの目標は${tgt}打（${scoreName(tgt, h.par)}）`;
+      else if(st < tgt) note += `・あと${tgt - st}打以内で入れば目標`;
+      else note += st === tgt ? `・目標の${tgt}打に到達` : `・目標の${tgt}打をオーバー`;
+    }
     if(st >= h.par * 2){ note = "ダブルパーです。ここで打ち切りのコースもあります"; warn = true; }
+    if(h.on === 0 && h.putts > 0){ note = "ショットが0のままです。ホールアウトの画面で「オン」を直せます"; warn = true; }
+    const halfLink = r.pos >= 9 ? `<button class="linkish" style="padding:0 2px;font-size:12px" data-act="half">前半の振り返り</button>` : "";
+    const paceLine = !pc ? (halfLink ? `<div class="pace">${halfLink}</div>` : "") : `<div class="pace"><span class="pg">${goalLabel(r.goal)}</span>${pc.budget < pc.parLeft
+        ? `<span>残りを全部パーでも届かない位置です</span>`
+        : `<span>残り${pc.left}Hを<b>${pc.budget}</b>打以内</span>`}${pc.pred != null && pc.left ? `<span>このままなら<b>${pc.pred}</b></span>` : ""}${halfLink}</div>`;
     m.innerHTML = `
       ${miniCard(r)}
       <div class="holehead">
         ${pin(hi)}
         <div class="pars" role="group" aria-label="パー">PAR ${[3,4,5].map(p => `<button class="par" data-par="${p}" aria-pressed="${h.par === p}">${p}</button>`).join("")}</div>
-        <div class="runsum">${t.n ? `ここまで<b>${t.s}<span class="d${t.diff < 0 ? " under" : ""}">${diffStr(t.diff)}</span></b>` : `このホールから<b>スタート</b>`}</div>
+        <div class="runsum">${t.n ? `ここまで<b>${t.s}<span class="d${t.diff < 0 ? " under" : ""}">${diffStr(t.diff)}</span></b>` : `このホールから<b>スタート</b>`}${pc && pc.n ? `<span class="pc${pc.pace > 0 ? " warn" : ""}">${pc.pace < 0 ? "目標より貯金" + (-pc.pace) : pc.pace > 0 ? "目標より借金" + pc.pace : "目標どおり"}</span>` : ""}</div>
       </div>
+      ${paceLine}
       <div class="counter" aria-live="polite">
         <div class="next"><span class="lbl">次は</span><span class="n${fresh ? " tick" : ""}" id="bn">${st + 1}</span><span class="u">打目</span></div>
         <div class="trail" role="img" aria-label="${trailLabel(trail)}">${trail.map((c, i) => `<i class="m ${c.toLowerCase()}${fresh && i === trail.length - 1 ? " new" : ""}"></i>`).join("")}</div>
         <div class="cnote${warn ? " warn" : ""}">${note}</div>
+        ${st === 0 ? holeHistHtml(r, hi) : ""}
       </div>
       <button class="slab shot" data-act="shot"><span class="t">ショット</span><span class="p">＋1</span></button>
       <button class="slab putt" data-act="putt"><span class="t">パット</span><span class="p">＋1</span></button>
@@ -633,21 +738,21 @@ h1{margin:0;font-size:15px;font-weight:700}
   function renderCard(){
     const m = $("main"), r = cur();
     if(!r){ m.innerHTML = `<div class="emptybox">ラウンドを始めると、ここにスコアカードができます。</div><button class="btn ink full" data-act="newform">ラウンドを始める</button>`; return; }
-    const t = totals(r), curHi = r.finished ? -1 : holeIdx(r);
+    const t = totals(r), curHi = r.finished ? -1 : holeIdx(r), mp = myPars(r);
     const block = (label, a, b) => {
       const tt = totals(r, a, b);
       let cols = "";
       for(let i = a; i < b; i++){
         const h = r.holes[i], pl = played(h), sc = strokes(h), inProg = i === curHi && !h.done;
         const score = !pl ? "" : inProg ? `<b class="inprog">${sc}</b>` : `<b class="mk ${markClass(sc, h.par)}">${sc}</b>`;
-        cols += `<button class="sc-col${i === curHi ? " cur" : ""}" data-edit="${i}" aria-label="${i + 1}番 PAR${h.par} ${pl ? sc + "打 " + h.putts + "パット" : "未入力"}。タップで入力・修正">
-          <span class="h">${i + 1}</span><span class="p">${h.par}</span><span class="s">${score}</span>
+        cols += `<button class="sc-col${i === curHi ? " cur" : ""}" data-edit="${i}" aria-label="${i + 1}番 PAR${h.par}${mp ? " 目標" + mp[i] : ""} ${pl ? sc + "打 " + h.putts + "パット" : "未入力"}。タップで入力・修正">
+          <span class="h">${i + 1}</span><span class="p">${h.par}</span>${mp ? `<span class="g${pl && !inProg && sc <= mp[i] ? " ok" : ""}">${mp[i]}</span>` : ""}<span class="s">${score}</span>
           <span class="pt">${pl ? h.putts : ""}</span><span class="pn">${pl && (h.ob + h.pen) ? h.ob + h.pen : ""}</span></button>`;
       }
-      return `<div class="sc">
-        <div class="sc-labels"><span>H</span><span>PAR</span><span>スコア</span><span>パット</span><span>罰打</span></div>
+      return `<div class="sc${mp ? " withgoal" : ""}">
+        <div class="sc-labels"><span>H</span><span>PAR</span>${mp ? "<span>目標</span>" : ""}<span>スコア</span><span>パット</span><span>罰打</span></div>
         ${cols}
-        <div class="sc-col sum"><span class="h">${label}</span><span class="p">${parSum(r, a, b)}</span><span class="s"><b>${tt.n ? tt.s : ""}</b></span><span class="pt">${tt.n ? tt.pt : ""}</span><span class="pn">${tt.n && (tt.ob + tt.pen) ? tt.ob + tt.pen : ""}</span></div>
+        <div class="sc-col sum"><span class="h">${label}</span><span class="p">${parSum(r, a, b)}</span>${mp ? `<span class="g">${mp.slice(a, b).reduce((x, y) => x + y, 0)}</span>` : ""}<span class="s"><b>${tt.n ? tt.s : ""}</b></span><span class="pt">${tt.n ? tt.pt : ""}</span><span class="pn">${tt.n && (tt.ob + tt.pen) ? tt.ob + tt.pen : ""}</span></div>
       </div>`;
     };
     m.innerHTML = `
@@ -659,6 +764,9 @@ h1{margin:0;font-size:15px;font-weight:700}
       <div class="stats"><span>パット<b>${t.pt}</b></span><span>OB<b>${t.ob}</b></span><span>池など<b>${t.pen}</b></span><span>入力済み<b>${t.n}</b>/18</span></div>
       <div class="legend"><span class="ex"><b class="mk c1 under">3</b>バーディー</span><span class="ex"><b class="mk s1">5</b>ボギー</span><span class="ex"><b class="mk s2">6</b>ダブルボギー以上</span></div>
       <p class="note">マスをタップすると、そのホールを入力・修正できます。</p>
+      <section><h2 class="sec">目標スコア</h2><div class="goalrow">${[0, ...GOALS].map(g => `<button class="gchip" data-rgoal="${g ? g - 1 : 0}" aria-pressed="${(r.goal || 0) === (g ? g - 1 : 0)}">${g ? g + "切り" : "なし"}</button>`).join("")}</div>
+        <p class="note" style="margin-top:6px">${mp ? "「目標」の行は、目標スコアを18ホールに割り振った打数です。難しいホールほど多めで、目標以内で上がったホールは濃く表示します。" : "目標を選ぶと、ホールごとの目標打数とペースが出ます。"}</p></section>
+      ${t.n ? `<button class="btn full" data-act="shareimg">スコアカードを画像で共有</button>` : ""}
       ${playersHtml(r)}
       ${(r.shots||[]).length ? `<div class="shotlist"><strong>このラウンドで測った飛距離</strong>${r.shots.map(x => `<div><span class="gsmall">${x.hole + 1}番</span><span>${esc(x.club || "クラブなし")}</span><b>${x.yards}ヤード</b></div>`).join("")}</div>` : ""}
       ${r.transferred ? `<div class="stats"><span class="st">楽天に転記済み</span><button class="linkish" data-act="untransfer">未転記に戻す</button></div>`
@@ -675,16 +783,18 @@ h1{margin:0;font-size:15px;font-weight:700}
         : `<button class="btn sm" data-askdel="${r.id}" aria-label="${fmtDate(r.date)}のラウンドを削除">削除</button>`;
       return `<li><button class="ropen" data-open="${r.id}"><span class="c">${esc(r.course || "コース名なし")}</span><span class="n">${t.n ? t.s : "—"}</span><span class="dt">${fmtDate(r.date)} ${t.n}ホール ${status}</span></button>${del}</li>`;
     };
-    m.innerHTML = `${banner()}
+    m.innerHTML = `${newsHtml()}${banner()}${backupNudge()}
       ${showNew ? `<section class="panel">${newForm()}</section>` : `<button class="btn ink full" data-act="newform">新しいラウンドを始める</button>`}
       <section><h2 class="sec">これまでのラウンド</h2>
       ${list.length ? `<ul class="rlist">${list.map(li).join("")}</ul>` : `<div class="emptybox">まだ記録がありません。最初のラウンドを始めると、ここに並びます。</div>`}
       </section>
-      <section><h2 class="sec">データ</h2><div class="rowbtns">
+      <section><h2 class="sec">データ</h2>${installHtml(false)}<div class="rowbtns" style="margin-top:8px">
         <button class="btn" data-act="csv">CSVで書き出す</button>
         <button class="btn" data-act="backup">バックアップを保存</button>
         <label class="btn" style="cursor:pointer">バックアップから戻す<input type="file" id="restoreFile" accept="application/json,.json" hidden></label>
-      </div><p class="note" style="margin-top:6px">機種変更のときは、バックアップを保存して新しいiPhoneで戻します。スイング動画はバックアップに含まれません。</p></section>
+        <button class="btn" data-act="copyall">記録をコピー</button>
+        <button class="btn" data-act="pasteall">コピーした記録を戻す</button>
+      </div><p class="note" style="margin-top:6px">機種変更のときは、バックアップを保存して新しいiPhoneで戻します。Safariからホーム画面のアプリへ移すときは「記録をコピー」→ アプリで「コピーした記録を戻す」。スイング動画はどちらにも含まれません。${extra.lastBackup ? `最後のバックアップ：${fmtDate(todayKeyOf(extra.lastBackup))}` : ""}</p></section>
       <section><h2 class="sec">設定</h2>
         <label class="setrow"><span style="flex:1"><b>競技モード</b><br><span class="gsmall">距離の表示をすべて隠します。距離計が禁止の大会で使います</span></span><input type="checkbox" id="comp" ${extra.competition ? "checked" : ""}></label>
       </section>`;
@@ -773,6 +883,24 @@ h1{margin:0;font-size:15px;font-weight:700}
       case "csv": exportCsv(); break;
       case "backup": exportBackup(); break;
       case "addplayer": addPlayer(); break;
+      case "shareimg": openShare(); break;
+      case "half": halfOpen = true; renderHalf(); break;
+      case "asknext": askNext(); break;
+      case "memo": memoEdit = true; render(); setTimeout(() => { const i = $("memoIn"); if(i) i.focus(); }, 0); break;
+      case "memosave": saveMemo(); break;
+      case "memocancel": memoEdit = false; render(); break;
+      case "askshot": ask = null; countForce = true; count("shot"); countForce = false; renderAsk(); break;
+      case "askcancel": ask = null; renderAsk(); break;
+      case "halfclose": halfOpen = false; renderHalf(); break;
+      case "sharego": shareGo(); break;
+      case "sharesave": shareSave(); break;
+      case "shareclose": closeShare(); break;
+      case "clubedit": clubEdit = true; render(); break;
+      case "clubdone": clubEdit = false; render(); toast("飛距離を保存しました"); break;
+      case "a2hshide": extra.a2hsHidden = true; saveExtra(); render(); break;
+      case "newsok": extra.news = NEWS; saveExtra(); render(); break;
+      case "copyall": copyAll(); break;
+      case "pasteall": pasteAll(); break;
       case "swclose": closeViewer(); break;
       case "swplay": swPlay(); break;
       case "swback": swStep(-1); break;
@@ -783,11 +911,12 @@ h1{margin:0;font-size:15px;font-weight:700}
       case "swuncompare": setB(null); break;
       case "swai": runAnalysis(); break;
       case "savevideo": saveVideo(); break;
+      case "presetoff": shootPreset = null; render(); break;
     }
   }
   document.addEventListener("click", e => {
     const b = e.target.closest("button");
-    if(!b){ if(e.target.id === "sheet"){ sheet = null; renderSheet(); } return; }
+    if(!b){ if(e.target.id === "sheet"){ sheet = null; renderSheet(); } if(e.target.id === "ask"){ ask = null; renderAsk(); } return; }
     const d = b.dataset;
     if(d.tab){ tab = d.tab; confirmDel = null; render(); return; }
     if(d.act){ onAct(d.act); return; }
@@ -804,13 +933,16 @@ h1{margin:0;font-size:15px;font-weight:700}
     if(d.club !== undefined){ saveShot(d.club || null); return; }
     if(d.ost !== undefined){ const k = Number(d.ost), dd = Number(d.d), r = cur(); if(sheet){ const v = sheet.others[k]; sheet.others[k] = v == null ? (dd > 0 ? r.holes[sheet.hi].par : null) : Math.max(1, Math.min(20, v + dd)); renderSheet(); } return; }
     if(d.delplayer !== undefined){ const r = cur(); if(r){ const k = Number(d.delplayer); r.players.splice(k, 1); r.holes.forEach(h => { if(h.others) h.others.splice(k, 1); }); touch(r); render(); } return; }
-    if(d.practiced !== undefined){ extra.practice = extra.practice || []; extra.practice.unshift({ date: todayKey(), theme: d.practiced }); extra.practice = extra.practice.slice(0, 30); saveExtra(); render(); toast("練習を記録しました"); return; }
+    if(d.practiced !== undefined){ extra.practice = extra.practice || []; extra.practice.unshift({ date: todayKey(), theme: d.practiced }); extra.practice = extra.practice.slice(0, 200); saveExtra(); render(); toast("練習を記録しました"); return; }
     if(d.vopen){ openViewer(d.vopen); return; }
     if(d.vdel){ idb.del(d.vdel).then(loadVideos); toast("動画を削除しました"); return; }
     if(d.vpick){ setB(d.vpick); return; }
     if(d.speed){ sv.speed = Number(d.speed); applySpeed(); renderViewer(); return; }
     if(d.key){ swSeekTo(Number(d.key)); return; }
     if(d.start){ nfStart = Number(d.start); document.querySelectorAll("[data-start]").forEach(x => x.setAttribute("aria-pressed", String(Number(x.dataset.start) === nfStart))); return; }
+    if(d.goal !== undefined){ nfGoal = Number(d.goal); document.querySelectorAll("[data-goal]").forEach(x => x.setAttribute("aria-pressed", String(Number(x.dataset.goal) === nfGoal))); return; }
+    if(d.rgoal !== undefined){ const r = cur(); if(r){ r.goal = Number(d.rgoal); extra.goal = r.goal; saveExtra(); touch(r); render(); toast(r.goal ? `目標を${goalLabel(r.goal)}にしました` : "目標をなしにしました"); } return; }
+    if(d.shoot){ const p = THEME_SHOOT[d.shoot] || ["7I", "face"]; shootPreset = { theme: d.shoot, club: p[0], view: p[1] }; tab = "swing"; render(); window.scrollTo(0, 0); return; }
   });
   document.addEventListener("input", e => {
     if(e.target.id === "nfDate") nfDraft.date = e.target.value;
@@ -819,7 +951,7 @@ h1{margin:0;font-size:15px;font-weight:700}
   document.addEventListener("submit", e => {
     if(e.target.id !== "nf") return;
     e.preventDefault();
-    newRound($("nfDate").value || todayKey(), $("nfCourse").value.trim(), nfStart);
+    newRound($("nfDate").value || todayKey(), $("nfCourse").value.trim(), nfStart, nfGoal || 0);
   });
   document.addEventListener("change", async e => {
     if(e.target.id !== "wake") return;
@@ -828,7 +960,7 @@ h1{margin:0;font-size:15px;font-weight:700}
   });
   document.addEventListener("keydown", e => {
     if(e.key !== "Escape") return;
-    if(sheet){ sheet = null; renderSheet(); } else if(transfer){ transfer = false; render(); }
+    if(ask){ ask = null; renderAsk(); } else if(sheet){ sheet = null; renderSheet(); } else if(halfOpen){ halfOpen = false; renderHalf(); } else if(transfer){ transfer = false; render(); }
   });
   document.addEventListener("visibilitychange", () => { if(!document.hidden){ if(wakeOn) reqWake(); flush(); } });
   window.addEventListener("online", flush);
@@ -843,7 +975,11 @@ h1{margin:0;font-size:15px;font-weight:700}
     if(e.target.id === "restoreFile" && e.target.files[0]) restoreBackup(e.target.files[0]);
     if(e.target.id === "vfile" && e.target.files[0]){ pendingVideo = e.target.files[0]; renderSwing(); }
   });
-  document.addEventListener("input", e => { if(e.target.id === "swSeek" && sv.a){ swSeekTo(Number(e.target.value)); } });
+  document.addEventListener("input", e => {
+    if(e.target.id === "swSeek" && sv.a){ swSeekTo(Number(e.target.value)); }
+    const c = e.target.dataset && e.target.dataset.clubin;
+    if(c){ extra.clubs = extra.clubs || {}; const v = Math.round(Number(e.target.value)); if(v > 0 && v < 450) extra.clubs[c] = v; else delete extra.clubs[c]; saveExtra(); }
+  });
   document.addEventListener("change", e => { if(e.target.id === "comp"){ extra.competition = e.target.checked; saveExtra(); toast(extra.competition ? "競技モード：距離を隠します" : "競技モードをオフにしました"); } });
 
   const CLUBS = ["1W","3W","5W","4U","5U","5I","6I","7I","8I","9I","PW","AW","SW"];
@@ -854,26 +990,49 @@ h1{margin:0;font-size:15px;font-weight:700}
     return 2 * 6371008.8 * Math.asin(Math.min(1, Math.sqrt(h)));
   }
   const yards = (a, b) => Math.round(meters(a, b) / 0.9144);
+  // Club distances: measured shots win once there are two of them; until then the player's own numbers are used.
+  let clubEdit = false;
+  function clubDist(){
+    const by = {}, man = extra.clubs || {};
+    Object.values(rounds).forEach(r => (r.shots || []).forEach(x => { if(x.club) (by[x.club] = by[x.club] || []).push(x.yards); }));
+    return CLUBS.map(c => {
+      const ys = by[c] || [], n = ys.length, avg = n ? Math.round(ys.reduce((a, b) => a + b, 0) / n) : null;
+      const use = n >= 2 ? avg : (man[c] || avg);
+      return { c, n, avg, max: n ? Math.max(...ys) : null, man: man[c] || null, use: use || null };
+    });
+  }
+  // The shortest club that gets there (amateurs come up short far more often than long).
+  function suggestClub(d){
+    const cs = clubDist().filter(x => x.use).sort((a, b) => a.use - b.use);
+    if(!cs.length || !(d > 0)) return null;
+    const pick = cs.find(x => x.use >= d - 3) || cs[cs.length - 1];
+    return { c: pick.c, y: pick.use, rest: pick.use < d - 3 ? d - pick.use : 0, soft: pick.use - d >= 15 };
+  }
   function clubHtml(){
-    const by = {};
-    Object.values(rounds).forEach(r => (r.shots || []).forEach(x => { if(x.club){ (by[x.club] = by[x.club] || []).push(x.yards); } }));
-    const rows = CLUBS.filter(c => by[c]).map(c => { const ys = by[c]; const av = Math.round(ys.reduce((a,b)=>a+b,0)/ys.length);
-      return `<div class="clubrow"><span class="cl">${c}</span><span class="av">${av}</span><span class="gsmall" style="flex:1">ヤード（平均）</span><span class="gsmall">最長 ${Math.max(...ys)}・${ys.length}回</span></div>`; });
-    return rows.length ? `<div style="background:var(--paper);border:1.5px solid var(--graphite)">${rows.join("")}</div>` : `<div class="emptybox">プレー画面の「距離」で飛距離を記録すると、クラブごとの平均がここに出ます。</div>`;
+    const rows = clubDist();
+    if(clubEdit){
+      return `<div style="background:var(--paper);border:1.5px solid var(--graphite)">${rows.map(x => `<label class="clubrow"><span class="cl">${x.c}</span><input type="number" inputmode="numeric" min="1" max="449" data-clubin="${x.c}" value="${x.man || ""}" placeholder="${x.avg || ""}" aria-label="${x.c}の飛距離"><span class="gsmall" style="flex:1">ヤード</span><span class="gsmall">${x.n ? `実測 平均${x.avg}・${x.n}回` : ""}</span></label>`).join("")}</div>
+        <p class="note" style="margin-top:6px">ランを含めた、いつもの飛距離を入れてください。実測が2回以上あるクラブは、実測の平均を使います。</p>
+        <button class="btn sm ink" style="margin-top:8px" data-act="clubdone">完了</button>`;
+    }
+    const shown = rows.filter(x => x.use);
+    return (shown.length ? `<div style="background:var(--paper);border:1.5px solid var(--graphite)">${shown.map(x => `<div class="clubrow"><span class="cl">${x.c}</span><span class="av">${x.use}</span><span class="gsmall" style="flex:1">ヤード${x.n >= 2 ? "（実測の平均）" : x.man ? "（入力）" : "（実測1回）"}</span><span class="gsmall">${x.n ? `最長 ${x.max}・${x.n}回` : ""}</span></div>`).join("")}</div>`
+      : `<div class="emptybox">いつもの飛距離を入れるか、プレー画面の「距離」で飛距離を記録すると、距離の画面におすすめのクラブが出ます。</div>`)
+      + `<button class="btn sm" style="margin-top:8px" data-act="clubedit">${shown.length ? "飛距離を直す" : "いつもの飛距離を入れる"}</button>`;
   }
 
-  const geo = { map: null, watch: null, me: null, acc: null, target: null, from: null, pending: null, layers: {}, centered: false, error: "" };
+  const geo = { map: null, watch: null, me: null, acc: null, target: null, from: null, pending: null, layers: {}, centered: false, error: "", elev: null };
   const greenFor = () => { const r = cur(); if(!r || r.finished || !r.course) return null; const g = (extra.courses[r.course] || {})[holeIdx(r)]; return g || null; };
   function openGeo(){
     const r = cur();
     if(extra.competition){ toast("競技モード中は距離を表示しません"); return; }
     $("geo").hidden = false;
-    geo.target = greenFor(); geo.from = null; geo.pending = null; geo.centered = false; geo.error = "";
+    geo.target = greenFor(); geo.green = null; geo.osmTried = false; geo.from = null; geo.pending = null; geo.centered = false; geo.error = ""; geo.elev = null; elevKey = "";
     if(!window.L) geo.error = "地図を読み込めませんでした。電波のある場所で開き直してください（飛距離の記録は使えます）";
     else if(!geo.map){
-      geo.map = L.map("map", { zoomControl: false, attributionControl: true }).setView([35.68, 139.76], 16);
+      geo.map = L.map("map", { zoomControl: false, attributionControl: false }).setView([35.68, 139.76], 16);
       L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Tiles © Esri" }).addTo(geo.map);
-      geo.map.on("click", e => { geo.target = { lat: e.latlng.lat, lng: e.latlng.lng }; geo.pending = null; drawGeo(); renderGeo(); });
+      geo.map.on("click", e => { geo.target = { lat: e.latlng.lat, lng: e.latlng.lng }; geo.green = null; geo.pending = null; drawGeo(); elevCheck(); renderGeo(); });
     }
     if(geo.map){ setTimeout(() => geo.map.invalidateSize(), 50); if(geo.target) geo.map.setView([geo.target.lat, geo.target.lng], 17); }
     if(!("geolocation" in navigator)){ geo.error = "この端末では位置情報が使えません"; }
@@ -881,8 +1040,10 @@ h1{margin:0;font-size:15px;font-weight:700}
       geo.watch = navigator.geolocation.watchPosition(p => {
         geo.me = { lat: p.coords.latitude, lng: p.coords.longitude }; geo.acc = p.coords.accuracy; if(window.L) geo.error = "";
         if(geo.map && !geo.centered){ geo.centered = true; const pts = [[geo.me.lat, geo.me.lng]]; if(geo.target) pts.push([geo.target.lat, geo.target.lng]);
-          pts.length > 1 ? geo.map.fitBounds(pts, { padding: [60, 60], maxZoom: 18 }) : geo.map.setView(pts[0], 17); }
-        drawGeo(); renderGeo();
+          const ph = $("geoPanel").offsetHeight || 0;
+          pts.length > 1 ? geo.map.fitBounds(pts, { paddingTopLeft: [50, 80], paddingBottomRight: [50, ph + 40], maxZoom: 18 }) : geo.map.setView(pts[0], 17); }
+        osmLoad(geo.me); if(osm.state === "ok" && !geo.osmTried){ geo.osmTried = true; osmReady(); }
+        drawGeo(); elevCheck(); renderGeo();
       }, err => { geo.error = err.code === 1 ? "位置情報が許可されていません。Safariの設定で、このページの位置情報を「許可」にしてください" : "現在地を取得できませんでした。空が見える場所で少し待ってください"; renderGeo(); },
       { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 });
     }
@@ -896,6 +1057,9 @@ h1{margin:0;font-size:15px;font-weight:700}
   function drawGeo(){
     if(!geo.map) return;
     Object.values(geo.layers).forEach(l => l && geo.map.removeLayer(l)); geo.layers = {};
+    if(osm.greens.length){
+      geo.layers.greens = L.layerGroup(osm.greens.map(g => L.polygon(g.pts, { color: g === geo.green ? "#F5C400" : "#FFFFFF", weight: g === geo.green ? 3 : 1.5, fillOpacity: 0.12, bubblingMouseEvents: false }).on("click", () => setGreen(g, false)))).addTo(geo.map);
+    }
     if(geo.me) geo.layers.me = L.circleMarker([geo.me.lat, geo.me.lng], { radius: 8, color: "#fff", weight: 3, fillColor: "#2F7DF6", fillOpacity: 1 }).addTo(geo.map);
     if(geo.target) geo.layers.t = L.marker([geo.target.lat, geo.target.lng], { icon: L.divIcon({ className: "", html: '<div class="flagicon"><i></i><b></b></div>', iconSize: [22, 30], iconAnchor: [2, 30] }) }).addTo(geo.map);
     if(geo.me && geo.target) geo.layers.line = L.polyline([[geo.me.lat, geo.me.lng], [geo.target.lat, geo.target.lng]], { color: "#F5C400", weight: 3 }).addTo(geo.map);
@@ -914,17 +1078,29 @@ h1{margin:0;font-size:15px;font-weight:700}
     let html = "";
     if(geo.error) html += `<div style="color:var(--amber);font-weight:700">${geo.error}</div>`;
     if(geo.me && geo.target){
-      html += `<div class="readout"><b>${yards(geo.me, geo.target)}</b><div><div class="u">ヤード</div><div class="gsmall">${Math.round(meters(geo.me, geo.target))}m・${onReg ? "登録したグリーンまで" : "タップした地点まで"}</div></div></div>`;
+      const yd = yards(geo.me, geo.target), el = geo.elev && geo.elev.key === elevKeyNow() ? geo.elev : null;
+      const dh = el && el.dh != null ? el.dh : null, plays = dh == null ? null : yd + Math.round(dh / 0.9144);
+      const sug = suggestClub(plays != null ? plays : yd);
+      const fb = geo.green ? frontBack(geo.me, geo.green) : null;
+      html += `<div class="readout"><b>${yd}</b><div><div class="u">ヤード</div><div class="gsmall">${Math.round(meters(geo.me, geo.target))}m・${onReg ? "登録したグリーンまで" : geo.green ? (geo.greenAuto ? `${holeIdx(r) + 1}番のグリーンの真ん中まで` : "グリーンの真ん中まで") : "タップした地点まで"}</div></div></div>`;
+      if(fb) html += `<div class="elev"><span>手前<b>${fb.f}</b></span><span>奥<b>${fb.b}</b></span><span>ヤード</span></div>`;
+      html += `<div class="elev">${dh == null ? `<span>${el ? "この場所の高低差はわかりません" : "高低差を調べています…"}</span>`
+          : Math.abs(dh) < 1 ? `<span>高低差 ほぼなし</span>`
+          : `<span>${dh > 0 ? "打ち上げ" : "打ち下ろし"}<b>${Math.abs(dh).toFixed(0)}</b>m</span><span>実質 約<b>${plays}</b>ヤード</span>`}
+        ${sug ? `<span>おすすめ<b>${sug.c}</b>${sug.rest ? `（届かないので残り約${sug.rest}y）` : sug.soft ? "（加減して）" : `（いつも${sug.y}y）`}</span>` : `<span>分析タブで飛距離を入れると、クラブの目安が出ます</span>`}</div>`;
+      if(dh != null) html += `<div class="attr">高低差は目安です（標高：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a>）</div>`;
     } else if(!geo.error){
       html += `<div class="gsmall" style="font-size:15px">${geo.me ? "地図をタップすると、そこまでの距離が出ます" : "現在地を探しています…"}</div>`;
     }
     if(geo.acc != null && geo.me) html += `<div class="gsmall">GPSの誤差 約±${Math.round(geo.acc)}m</div>`;
-    if(geo.target && playing && r.course && !onReg) html += `<button class="btn sm" data-act="reggreen">この地点を${holeIdx(r) + 1}番のグリーンとして登録</button>`;
+    if(geo.target && playing && r.course && !onReg && !(geo.green && geo.greenAuto)) html += `<button class="btn sm" data-act="reggreen">この地点を${holeIdx(r) + 1}番のグリーンとして登録</button>`;
     if(!playing) html += `<div class="gsmall">飛距離の記録は、ラウンド中に使えます。</div>`;
     else if(geo.from){
       html += `<div class="grow"><div style="flex:1"><div class="gsmall">打った場所から</div><b style="font-family:var(--f-num);font-size:30px">${geo.me ? yards(geo.from, geo.me) : "–"}ヤード</b></div>
         <button class="btn ink" data-act="shotend" ${geo.me ? "" : "disabled"}>ボールの位置で記録</button><button class="btn sm" data-act="shotcancel">やめる</button></div>`;
     } else html += `<button class="btn" data-act="shotstart" ${geo.me ? "" : "disabled"}>ここから打つ（飛距離を測る）</button>`;
+    if(window.L) html += `<div class="attr">航空写真：© Esri, Maxar, Earthstar Geographics ／ 地図表示：Leaflet${osm.greens.length ? " ／ グリーンの形：© OpenStreetMap contributors" : ""}</div>`;
+    if(osm.state === "ok" && !osm.greens.length && geo.me) html += `<div class="attr">このコースのグリーンの形はまだ地図データにありません。地図をタップすると距離が出ます。</div>`;
     el.innerHTML = html;
   }
   function regGreen(){
@@ -988,47 +1164,71 @@ h1{margin:0;font-size:15px;font-weight:700}
     download(`golf-scores-${todayKey()}.csv`, "﻿" + lines.join("\n"), "text/csv");
     toast("CSVを書き出しました");
   }
+  const backupData = () => ({ app: "golf-counter", version: 1, rounds, extra: { courses: extra.courses, practice: extra.practice || [], clubs: extra.clubs || {}, notes: extra.notes || {} } });
   function exportBackup(){
-    download(`golf-backup-${todayKey()}.json`, JSON.stringify({ app: "golf-counter", version: 1, rounds, extra }, null, 1), "application/json");
+    download(`golf-backup-${todayKey()}.json`, JSON.stringify(backupData(), null, 1), "application/json");
+    extra.lastBackup = Date.now(); saveExtra(); render();
     toast("バックアップを保存しました");
+  }
+  // Merge rounds by "newest edit wins", so restoring twice or restoring an older file never loses anything.
+  function importData(text){
+    try{
+      const d = JSON.parse(text);
+      if(!d || typeof d.rounds !== "object") throw new Error("bad");
+      let n = 0;
+      Object.values(d.rounds).forEach(r => { if(r && r.id && Array.isArray(r.holes) && r.holes.length === 18){ const l = rounds[r.id]; if(!l || (r.updatedAt || 0) > (l.updatedAt || 0)){ rounds[r.id] = r; addPending(r.id); n++; } } });
+      if(d.extra && typeof d.extra === "object"){
+        extra.courses = Object.assign({}, d.extra.courses || {}, extra.courses);
+        const seen = new Set((extra.practice || []).map(p => p.date + p.theme));
+        extra.practice = (extra.practice || []).concat((d.extra.practice || []).filter(p => !seen.has(p.date + p.theme))).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 200);
+        extra.clubs = Object.assign({}, d.extra.clubs || {}, extra.clubs || {});
+        const nn = d.extra.notes || {}; extra.notes = extra.notes || {}; Object.keys(nn).forEach(c => { extra.notes[c] = Object.assign({}, nn[c], extra.notes[c] || {}); });
+        saveExtra();
+      }
+      if(!curId || !rounds[curId]) curId = pickCurrent();
+      saveLocal(); clearTimeout(timer); timer = setTimeout(flush, 300); render();
+      toast(n ? `${n}ラウンドを戻しました` : "新しく戻すラウンドはありませんでした（すでに同じ記録があります）");
+    }catch(e){ toast("読み込めませんでした。このアプリのバックアップか、コピーした記録を使ってください"); }
   }
   function restoreBackup(file){
     const fr = new FileReader();
-    fr.onload = () => {
-      try{
-        const d = JSON.parse(fr.result);
-        if(!d || typeof d.rounds !== "object") throw new Error("bad");
-        let n = 0;
-        Object.values(d.rounds).forEach(r => { if(r && r.id && Array.isArray(r.holes) && r.holes.length === 18){ const l = rounds[r.id]; if(!l || (r.updatedAt || 0) > (l.updatedAt || 0)){ rounds[r.id] = r; addPending(r.id); n++; } } });
-        if(d.extra && typeof d.extra === "object"){ extra.courses = Object.assign({}, d.extra.courses || {}, extra.courses); extra.practice = (extra.practice || []).concat(d.extra.practice || []).slice(0, 30); saveExtra(); }
-        if(!curId || !rounds[curId]) curId = pickCurrent();
-        saveLocal(); clearTimeout(timer); timer = setTimeout(flush, 300); render();
-        toast(`${n}ラウンドを戻しました`);
-      }catch(e){ toast("このファイルは読み込めませんでした。バックアップのJSONを選んでください"); }
-    };
+    fr.onload = () => importData(fr.result);
     fr.readAsText(file);
+  }
+  async function copyAll(){
+    try{ await navigator.clipboard.writeText(JSON.stringify(backupData())); toast(`${Object.keys(rounds).length}ラウンドをコピーしました。移す先で「コピーした記録を戻す」`); }
+    catch(e){ toast("コピーできませんでした。「バックアップを保存」を使ってください"); }
+  }
+  async function pasteAll(){
+    let text = "";
+    try{ text = await navigator.clipboard.readText(); }catch(e){}
+    if(!text || text.indexOf("golf-counter") < 0){ toast("コピーした記録が見つかりませんでした。先に移す元で「記録をコピー」"); return; }
+    importData(text);
   }
 
   // ================= analysis =================
-  function stats(){
-    const rs = Object.values(rounds);
+  function stats(rs){
+    rs = rs || Object.values(rounds);
     const full = rs.filter(r => r.holes.every(played)).sort((a, b) => a.date.localeCompare(b.date) || (a.createdAt||0) - (b.createdAt||0));
-    let holes = 0, putts = 0, three = 0, gir = 0, ob = 0, pen = 0;
+    let holes = 0, putts = 0, three = 0, gir = 0, ob = 0, pen = 0, over = 0, P = 0, A = 0, U = 0, extraPutts = 0;
     const byPar = { 3: [0, 0], 4: [0, 0], 5: [0, 0] };
-    rs.forEach(r => r.holes.forEach(h => {
-      if(!h.done && !played(h)) return; if(!played(h)) return;
-      holes++; putts += h.putts; if(h.putts >= 3) three++; if(h.on <= h.par - 2) gir++; ob += h.ob; pen += h.pen;
+    rs.forEach(r => r.holes.forEach((h, i) => {
+      if(!holeDone(r, i)) return;
+      holes++; putts += h.putts; if(h.putts >= 3) three++; if(h.on <= h.par - 2) gir++; ob += h.ob; pen += h.pen; over += strokes(h) - h.par;
+      const l = lossOf(h); P += l.P; A += l.A; U += l.U; extraPutts += Math.max(0, h.putts - 2);
       if(byPar[h.par]){ byPar[h.par][0] += strokes(h) - h.par; byPar[h.par][1]++; }
     }));
-    const scores = full.map(r => totals(r).s);
+    const scores = full.map(r => totals(r).s), per = v => holes ? v / holes * 18 : null;
     return { full, holes, scores,
       avg: scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null,
       best: scores.length ? Math.min(...scores) : null,
-      puttsPerRound: holes ? putts / holes * 18 : null,
+      puttsPerRound: per(putts),
       threeRate: holes ? three / holes : null,
       girRate: holes ? gir / holes : null,
-      obPerRound: holes ? ob / holes * 18 : null,
-      penPerRound: holes ? pen / holes * 18 : null,
+      obPerRound: per(ob),
+      penPerRound: per(pen),
+      perHole: holes ? over / holes : null,
+      loss: holes ? { P: per(P), A: per(A), U: per(U), ob: per(ob), pen: per(pen), putts: per(putts), three: per(extraPutts), n: 18 } : null,
       byPar: Object.fromEntries(Object.entries(byPar).map(([p, [s, n]]) => [p, n ? s / n : null])) };
   }
   function suggestions(st){
@@ -1056,23 +1256,30 @@ h1{margin:0;font-size:15px;font-weight:700}
     const m = $("main"), st = stats();
     const f1 = v => v == null ? "—" : v.toFixed(1), pc = v => v == null ? "—" : Math.round(v * 100) + "%";
     const sg = v => v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2);
-    if(!st.holes){ m.innerHTML = `<div class="emptybox">ラウンドを記録すると、ここに平均スコアや弱点、次の練習テーマが出ます。</div>`; return; }
-    const tips = suggestions(st), log = (extra.practice || []).slice(0, 5);
+    if(!st.holes){ m.innerHTML = `<div class="emptybox">ラウンドを記録すると、ここに平均スコアや、パーとの差の内訳、次の練習テーマが出ます。</div><section><h2 class="sec">クラブ別の飛距離</h2>${clubHtml()}</section>`; return; }
+    const tips = suggestions(st), log = (extra.practice || []).slice(0, 5), eff = practiceEffect();
+    const goals = st.full.filter(r => r.goal), hit = goals.filter(r => totals(r).s <= r.goal).length;
+    const L = st.loss, tot = L.P + L.A + L.U;
     m.innerHTML = `
       <div class="kpis">
         <div class="kpi"><span>平均スコア</span><b>${st.avg == null ? "—" : st.avg.toFixed(1)}</b><small>18ホール ${st.full.length}回</small></div>
-        <div class="kpi"><span>ベスト</span><b>${st.best ?? "—"}</b><small>&nbsp;</small></div>
+        <div class="kpi"><span>ベスト</span><b>${st.best ?? "—"}</b><small>${goals.length ? `目標達成 ${hit}/${goals.length}回` : "&nbsp;"}</small></div>
         <div class="kpi"><span>パット/ラウンド</span><b>${f1(st.puttsPerRound)}</b><small>3パット ${pc(st.threeRate)}</small></div>
         <div class="kpi"><span>パーオン率</span><b>${pc(st.girRate)}</b><small>${st.holes}ホールから</small></div>
         <div class="kpi"><span>OB/ラウンド</span><b>${f1(st.obPerRound)}</b><small>&nbsp;</small></div>
         <div class="kpi"><span>池など/ラウンド</span><b>${f1(st.penPerRound)}</b><small>&nbsp;</small></div>
       </div>
+      <section class="panel"><h3 class="sub">パーとの差 ${tot >= 0 ? "+" : "−"}${Math.abs(tot).toFixed(1)} の内訳（1ラウンドあたり）</h3>${lossHtml(L, true)}
+        ${whatIfHtml(L, 0, true) ? `<h3 class="sub">もしも（1ラウンドあたり）</h3>${whatIfHtml(L, 0, true)}` : ""}
+        <p class="note">${bestLever(L)}</p></section>
       <section><h2 class="sec">パー別の平均（パーとの差）</h2><div class="parrow">
         ${[3, 4, 5].map(p => `<div class="parbox"><span>パー${p}</span><b>${sg(st.byPar[p])}</b></div>`).join("")}</div></section>
       ${st.full.length >= 2 ? `<section><h2 class="sec">スコアの推移（直近10ラウンド）</h2>${trendSvg(st.full)}</section>` : ""}
       <section><h2 class="sec">次の練習テーマ</h2><div style="display:flex;flex-direction:column;gap:8px">
-        ${tips.map(t => `<div class="tip"><b>${esc(t.theme)}</b><p>${esc(t.why)}</p>${t.film ? `<span class="film">撮ると良いスイング：${esc(t.film)}</span>` : ""}<button class="btn sm" style="align-self:flex-start" data-practiced="${esc(t.theme)}">今日これを練習した</button></div>`).join("")}
+        ${tips.map(t => `<div class="tip"><b>${esc(t.theme)}</b><p>${esc(t.why)}</p>${t.film ? `<span class="film">撮ると良いスイング：${esc(t.film)}</span>` : ""}<div class="rowbtns"><button class="btn sm" data-practiced="${esc(t.theme)}">今日これを練習した</button>${THEME_SHOOT[t.theme] ? `<button class="btn sm" data-shoot="${esc(t.theme)}">このテーマで撮る</button>` : ""}</div></div>`).join("")}
       </div>${log.length ? `<div class="plog" style="margin-top:8px"><b style="color:var(--graphite)">練習の記録</b>${log.map(l => `<span>${fmtDate(l.date)}　${esc(l.theme)}</span>`).join("")}</div>` : ""}</section>
+      ${eff.length ? `<section><h2 class="sec">練習はスコアに出ている？</h2><div style="display:flex;flex-direction:column;gap:8px">${eff.map(effHtml).join("")}</div>
+        <p class="note" style="margin-top:6px">練習を始めた日の前と後のラウンドを比べています。ラウンド数が少ないうちは、たまたまの差も大きく出ます。</p></section>` : ""}
       <section><h2 class="sec">クラブ別の飛距離</h2>${clubHtml()}</section>`;
   }
 
@@ -1090,7 +1297,7 @@ h1{margin:0;font-size:15px;font-weight:700}
     }));
     return { all: () => run("readonly", s => s.getAll()), put: v => run("readwrite", s => s.put(v)), del: id => run("readwrite", s => s.delete(id)) };
   })();
-  let videos = null, pendingVideo = null, videoErr = "";
+  let videos = null, pendingVideo = null, videoErr = "", shootPreset = null;
   function loadVideos(){ idb.all().then(v => { videos = (v || []).sort((a, b) => b.at - a.at); if(tab === "swing") renderSwing(); }).catch(() => { videos = []; videoErr = "この画面では動画を保存できません（プライベートブラウズでは使えないことがあります）"; if(tab === "swing") renderSwing(); }); }
   function renderSwing(){
     const m = $("main");
@@ -1100,22 +1307,23 @@ h1{margin:0;font-size:15px;font-weight:700}
       <section class="panel"><div class="addv">
         <b>スイングを撮る・追加する</b>
         <label class="btn ink" style="text-align:center;cursor:pointer">${pendingVideo ? "別の動画を選ぶ" : "動画を撮る／選ぶ"}<input type="file" id="vfile" accept="video/*" hidden></label>
+        ${shootPreset ? `<span class="gsmall">テーマ「${esc(shootPreset.theme)}」：${shootPreset.club}を${shootPreset.view === "dtl" ? "後方" : "正面"}から撮りましょう　<button class="linkish" style="padding:0" data-act="presetoff">テーマなしにする</button></span>` : ""}
         ${pendingVideo ? `<span class="gsmall">${esc(pendingVideo.name || "動画")}（${(pendingVideo.size / 1048576).toFixed(1)}MB）</span>
-          <div class="grow"><select id="vclub" aria-label="クラブ">${clubs.map(c => `<option>${c}</option>`).join("")}</select>
-          <select id="vview" aria-label="撮った向き"><option value="face">正面から</option><option value="dtl">後方から</option></select></div>
+          <div class="grow"><select id="vclub" aria-label="クラブ">${clubs.map(c => `<option${shootPreset && shootPreset.club === c ? " selected" : ""}>${c}</option>`).join("")}</select>
+          <select id="vview" aria-label="撮った向き"><option value="face">正面から</option><option value="dtl"${shootPreset && shootPreset.view === "dtl" ? " selected" : ""}>後方から</option></select></div>
           <input type="text" id="vnote" placeholder="メモ（例：練習場、右に曲がる）" autocomplete="off">
           <button class="btn ink" data-act="savevideo">保存する</button>` : `<span class="gsmall">全身が入るように、体の正面か後方から撮ってください。3〜6秒くらいの長さがおすすめです。</span>`}
       </div></section>
       ${videoErr ? `<div class="warnline">${esc(videoErr)}</div>` : ""}
       <section><h2 class="sec">保存したスイング</h2>
-      ${videos.length ? `<ul class="vlist">${videos.map(v => `<li><button class="vo" data-vopen="${v.id}"><b>${esc(v.club)}　${v.view === "dtl" ? "後方" : "正面"}</b><span>${fmtDate(v.date)}${v.note ? "　" + esc(v.note) : ""}${v.analysis ? "　解析済み" : ""}</span></button><button class="btn sm" data-vdel="${v.id}">削除</button></li>`).join("")}</ul>`
+      ${videos.length ? `<ul class="vlist">${videos.map(v => `<li><button class="vo" data-vopen="${v.id}"><b>${esc(v.club)}　${v.view === "dtl" ? "後方" : "正面"}${v.theme ? `<span class="vtheme">${esc(v.theme)}</span>` : ""}</b><span>${fmtDate(v.date)}${v.note ? "　" + esc(v.note) : ""}${v.analysis ? "　解析済み" : ""}</span></button><button class="btn sm" data-vdel="${v.id}">削除</button></li>`).join("")}</ul>`
         : `<div class="emptybox">まだ動画がありません。撮ったスイングは、このiPhoneの中にだけ保存されます。</div>`}
       </section>`;
   }
   function saveVideo(){
     if(!pendingVideo) return;
-    const v = { id: "v" + Date.now().toString(36), at: Date.now(), date: todayKey(), club: $("vclub").value, view: $("vview").value, note: $("vnote").value.trim(), blob: pendingVideo, analysis: null };
-    idb.put(v).then(() => { pendingVideo = null; toast("スイングを保存しました"); loadVideos(); })
+    const v = { id: "v" + Date.now().toString(36), at: Date.now(), date: todayKey(), club: $("vclub").value, view: $("vview").value, note: $("vnote").value.trim(), theme: shootPreset ? shootPreset.theme : "", blob: pendingVideo, analysis: null };
+    idb.put(v).then(() => { pendingVideo = null; shootPreset = null; toast("スイングを保存しました"); loadVideos(); })
       .catch(() => toast("保存できませんでした。容量が足りないか、この画面では保存できません"));
   }
 
@@ -1317,6 +1525,526 @@ h1{margin:0;font-size:15px;font-weight:700}
       <span style="color:#9A9E92;font-size:11px">スマホの動画からの目安です。撮る向きや距離で数値は変わります。</span>
     </div>`;
   }
+
+  // ================= goal (N切り), personal par per hole, pace =================
+  const GOALS = [120, 110, 100, 90, 80];
+  const goalLabel = g => g ? (g + 1) + "切り" : "";
+  // a hole counts once it is holed out, or once play has moved past it
+  const holeDone = (r, i) => { const h = r.holes[i]; return h.done || (played(h) && (r.finished || i !== holeIdx(r))); };
+  function suggestGoal(){
+    const st = stats();
+    if(st.avg == null) return 99;
+    const b = GOALS.find(x => x < st.avg);
+    return b ? b - 1 : 0;
+  }
+  // Spread (goal - par) over the 18 holes. Harder holes get the extra strokes:
+  // this course's own history first, then the player's average per par, then par 5 > 4 > 3.
+  function myPars(r){
+    if(!r || !r.goal) return null;
+    const mp = r.holes.map(h => h.par), allow = r.goal - mp.reduce((a, b) => a + b, 0);
+    if(allow <= 0) return mp;
+    const others = Object.values(rounds).filter(x => x.id !== r.id);
+    const byPar = stats(others).byPar, same = r.course ? others.filter(x => x.course === r.course) : [];
+    const diff = r.holes.map((h, i) => {
+      let s = 0, n = 0;
+      same.forEach(x => { const y = x.holes[i]; if(y && y.par === h.par && played(y)){ s += strokes(y) - y.par; n++; } });
+      if(n) return 100 + s / n;
+      return byPar[h.par] != null ? byPar[h.par] : ({ 3: 0.5, 4: 1, 5: 1.5 })[h.par] || 1;
+    });
+    const base = Math.floor(allow / 18), rem = allow - base * 18;
+    mp.map((_, i) => i).sort((a, b) => diff[b] - diff[a] || a % 9 - b % 9 || a - b)
+      .forEach((i, k) => { mp[i] += base + (k < rem ? 1 : 0); });
+    return mp;
+  }
+  // pace: strokes against the personal pars so far; prediction: this round's form blended with the player's history
+  function paceOf(r){
+    const mp = myPars(r); if(!mp) return null;
+    const hist = stats(Object.values(rounds).filter(x => x.id !== r.id)).byPar;
+    let pace = 0, sum = 0, over = 0, n = 0, parLeft = 0; const left = [];
+    r.holes.forEach((h, i) => {
+      if(holeDone(r, i)){ pace += strokes(h) - mp[i]; sum += strokes(h); over += strokes(h) - h.par; n++; }
+      else { left.push(i); parLeft += h.par; }
+    });
+    const eCur = n ? over / n : null, w = n / (n + 6);
+    let pred = null;
+    if(!left.length) pred = sum;
+    else if(n >= 3 || left.every(i => hist[r.holes[i].par] != null)){
+      pred = sum;
+      left.forEach(i => { const h = r.holes[i], eh = hist[h.par]; pred += h.par + (eh != null && n ? w * eCur + (1 - w) * eh : eh != null ? eh : eCur); });
+      pred = Math.round(pred);
+    }
+    return { mp, pace, sum, n, left: left.length, parLeft, budget: r.goal - sum, pred };
+  }
+
+  // ================= where the strokes went =================
+  // Against par, split three ways that always add up to (strokes - par):
+  //   penalties: 2 per OB (the penalty plus the wasted shot), 1 per penalty area / unplayable
+  //   to the green: strokes to reach the green beyond regulation (par - 2), penalties excluded
+  //   putting: putts beyond two
+  const lossOf = h => { const P = 2 * h.ob + h.pen; return { P, A: h.on - P - (h.par - 2), U: h.putts - 2 }; };
+  function lossSum(r, idxs){
+    const t = { P: 0, A: 0, U: 0, n: 0, ob: 0, pen: 0, three: 0, putts: 0 };
+    (idxs || r.holes.map((_, i) => i)).forEach(i => { const h = r.holes[i]; if(!holeDone(r, i)) return; const l = lossOf(h); t.P += l.P; t.A += l.A; t.U += l.U; t.n++; t.ob += h.ob; t.pen += h.pen; t.three += Math.max(0, h.putts - 2); t.putts += h.putts; });
+    return t;
+  }
+  function lossHtml(L, avg){
+    const f = v => avg ? (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(1) : diffStr(v);
+    const n1 = v => avg ? v.toFixed(1) : v;
+    const rows = [
+      { c: "var(--amber)", k: "罰打", v: L.P, d: `OB ${n1(L.ob)}回（1回で2打）・池など ${n1(L.pen)}回` },
+      { c: "var(--graphite)", k: "グリーンまで", v: L.A, d: `パーオンの打数（パー−2）より多くかかった分` },
+      { c: "var(--green)", k: "パット", v: L.U, d: `${n1(L.putts)}パット（1ホール2パットが基準）` }
+    ];
+    const pos = rows.map(x => Math.max(0, x.v));
+    return `<div class="loss">
+      ${pos.some(v => v > 0) ? `<div class="lossbar" aria-hidden="true">${rows.map((x, k) => pos[k] > 0 ? `<i style="flex:${pos[k]};background:${x.c}"></i>` : "").join("")}</div>` : ""}
+      ${rows.map(x => `<div class="lossrow"><span class="sw" style="background:${x.c}"></span><span>${x.k}<small>${x.d}</small></span><b>${f(x.v)}</b></div>`).join("")}
+    </div>`;
+  }
+  function whatIfHtml(L, gap, avg){
+    const n1 = v => avg ? v.toFixed(1) : v;
+    const xs = [
+      { k: `OB（${n1(L.ob)}回）がなかったら`, v: 2 * L.ob },
+      { k: `3パット以上を2パットで収めていたら`, v: L.three },
+      { k: `池などの罰打（${n1(L.pen)}回）がなかったら`, v: L.pen }
+    ].filter(x => x.v > 0.05).sort((a, b) => b.v - a.v);
+    if(!xs.length) return "";
+    return `<div class="ifs">${xs.map(x => `<div><span>${x.k}${gap > 0 && x.v >= gap ? `<span class="hit">これだけで目標達成</span>` : ""}</span><b>−${n1(x.v)}打</b></div>`).join("")}</div>`;
+  }
+  function bestLever(L){
+    const k = [["P", L.P], ["A", L.A], ["U", L.U]].sort((a, b) => b[1] - a[1])[0];
+    if(!(k[1] > 0)) return "パーとの差はほとんどありません。この調子で。";
+    return k[0] === "P" ? "いちばん大きいのは罰打です。OBが出やすいホールでドライバーを持たない、池は無理に越えない、という判断だけでも縮まります。"
+      : k[0] === "A" ? "いちばん大きいのは、グリーンに乗るまでの打数です。無理に乗せにいかず、次が打ちやすい場所に運ぶと大叩きが減ります。"
+      : "いちばん大きいのはパットです。3パットを減らすには、長いパットを2パットで収める距離感の練習が近道です。";
+  }
+
+  // ================= round recap =================
+  function recapHtml(r){
+    const t = totals(r), L = lossSum(r), missing = 18 - t.n, full = !missing;
+    const prev = Object.values(rounds).filter(x => x.id !== r.id && x.holes.every(played)).map(x => totals(x).s);
+    const best = prev.length ? Math.min(...prev) : null, avg = prev.length ? prev.reduce((a, b) => a + b, 0) / prev.length : null;
+    const gap = r.goal && full ? t.s - r.goal : null;
+    const badges = [];
+    if(gap != null) badges.push(gap <= 0 ? `<span class="badge flag">${goalLabel(r.goal)} 達成</span>` : `<span class="badge miss">${goalLabel(r.goal)}まで あと${gap}打</span>`);
+    if(full && best != null && t.s < best) badges.push(`<span class="badge flag">自己ベスト更新</span>`);
+    const vs = full && avg != null ? Math.round(t.s - avg) : null;
+    const mp = myPars(r) || r.holes.map(h => h.par);
+    let bi = -1, wi = -1;
+    r.holes.forEach((h, i) => {
+      if(!played(h)) return;
+      if(bi < 0 || strokes(h) - mp[i] < strokes(r.holes[bi]) - mp[bi]) bi = i;
+      if(wi < 0 || strokes(h) - h.par > strokes(r.holes[wi]) - r.holes[wi].par) wi = i;
+    });
+    const why = h => h.ob ? `OB ${h.ob}回` : h.putts >= 3 ? `${h.putts}パット` : h.pen ? `池など ${h.pen}回` : `${h.on}オン${h.putts}パット`;
+    const hb = bi >= 0 ? r.holes[bi] : null, hw = wi >= 0 ? r.holes[wi] : null;
+    const wf = whatIfHtml(L, gap || 0, false);
+    return `<section class="panel">
+        <div class="fhead"><span>ラウンド終了</span><span>${esc(r.course || fmtDate(r.date))}</span></div>
+        <div class="bigtotal"><b>${t.s}</b><span class="${t.diff < 0 ? "under" : ""}">${diffStr(t.diff)}</span></div>
+        ${badges.length ? `<div class="badges">${badges.join("")}</div>` : ""}
+        <div class="stats"><span>パット<b>${t.pt}</b></span><span>OB<b>${t.ob}</b></span><span>池など<b>${t.pen}</b></span>${vs != null ? `<span>いつもより<b>${vs > 0 ? "+" + vs : vs < 0 ? "−" + -vs : "±0"}</b>打</span>` : ""}</div>
+      </section>
+      ${miniCard(r)}
+      ${missing ? `<div class="cnote warn">${missing}ホールが未入力です。スコアカードのマスをタップすると入力できます</div>` : ""}
+      ${L.n ? `<section class="panel"><h3 class="sub">パーとの差 ${diffStr(L.P + L.A + L.U)} の内訳</h3>${lossHtml(L, false)}
+        ${wf ? `<h3 class="sub">もしも</h3>${wf}` : ""}
+        ${hb && hw && bi !== wi ? `<div class="bw"><div>ベスト<b>${bi + 1}番 ${strokes(hb)}打（${scoreName(strokes(hb), hb.par)}）</b></div><div>ワースト<b>${wi + 1}番 ${strokes(hw)}打（${why(hw)}）</b></div></div>` : ""}
+      </section>` : ""}
+      ${r.transferred ? `<div class="stats"><span class="st">楽天に転記済み</span></div>` : `<button class="btn ink full" data-act="xfer">楽天ゴルフスコアへ転記する</button>`}
+      <button class="btn full" data-act="shareimg">スコアカードを画像で共有</button>
+      <button class="btn full" data-tab="card">スコアカードを見る</button>
+      <button class="btn full" data-act="newform">新しいラウンドを始める</button>
+      ${installHtml(true)}`;
+  }
+
+
+
+  // ================= this hole at this course: past results and the player's own note =================
+  function holeHist(r, i){
+    if(!r.course) return null;
+    const hs = Object.values(rounds).filter(x => x.id !== r.id && x.course === r.course).map(x => x.holes[i]).filter(h => h && played(h));
+    if(!hs.length) return null;
+    const sc = hs.map(strokes);
+    return { n: hs.length, avg: sc.reduce((a, b) => a + b, 0) / hs.length, best: Math.min(...sc), ob: hs.reduce((a, h) => a + h.ob, 0), pen: hs.reduce((a, h) => a + h.pen, 0), three: hs.filter(h => h.putts >= 3).length };
+  }
+  const memoOf = (r, i) => r.course ? ((extra.notes || {})[r.course] || {})[i] || "" : "";
+  function holeHistHtml(r, i){
+    const h = holeHist(r, i), memo = memoOf(r, i);
+    if(memoEdit) return `<div class="hist"><form class="memoform" id="memoForm"><input id="memoIn" maxlength="60" value="${esc(memo)}" placeholder="例：右はOB。左のバンカー手前を狙う" autocomplete="off" aria-label="${i + 1}番のメモ"><button class="btn sm ink" type="submit">保存</button><button class="btn sm" type="button" data-act="memocancel">やめる</button></form></div>`;
+    if(!h && !memo && !r.course) return "";
+    return `<div class="hist">
+      ${h ? `<span>このコースの${i + 1}番（過去${h.n}回）：平均${h.avg.toFixed(1)}・ベスト${h.best}${h.ob ? `・OB ${h.ob}回` : ""}${h.pen ? `・池など ${h.pen}回` : ""}${h.three ? `・3パット ${h.three}回` : ""}</span>` : ""}
+      ${memo ? `<span class="memo">メモ：${esc(memo)}</span>` : ""}
+      <button class="linkish" style="padding:0" data-act="memo">${memo ? "メモを直す" : "このホールのメモを残す"}</button>
+    </div>`;
+  }
+  function saveMemo(){
+    const r = cur(), el = $("memoIn"); if(!r || !el || !r.course) { memoEdit = false; render(); return; }
+    const hi = holeIdx(r), v = el.value.trim();
+    extra.notes = extra.notes || {}; const c = extra.notes[r.course] = extra.notes[r.course] || {};
+    if(v) c[hi] = v; else delete c[hi];
+    saveExtra(); memoEdit = false; render(); toast(v ? `${hi + 1}番のメモを保存しました。次に来たときに出ます` : "メモを消しました");
+  }
+  document.addEventListener("submit", e => { if(e.target.id === "memoForm"){ e.preventDefault(); saveMemo(); } });
+
+  // ================= half-time review (the lunch break between the nines) =================
+  function halfHtml(r){
+    const ord = orderOf(r.start), front = ord.slice(0, 9), back = ord.slice(9);
+    const L = lossSum(r, front), s = front.reduce((a, i) => a + (holeDone(r, i) ? strokes(r.holes[i]) : 0), 0);
+    const par = front.reduce((a, i) => a + r.holes[i].par, 0), mp = myPars(r), pc = paceOf(r);
+    let badge = "", plan = "";
+    if(mp && pc){
+      const tf = front.reduce((a, i) => a + mp[i], 0), tb = back.reduce((a, i) => a + mp[i], 0);
+      const parB = back.reduce((a, i) => a + r.holes[i].par, 0), budget = pc.budget;
+      badge = s < tf ? `<span class="badge flag">前半の目標${tf}打より${tf - s}打よい</span>` : s === tf ? `<span class="badge flag">前半は目標どおり</span>` : `<span class="badge miss">前半の目標${tf}打より${s - tf}打多い</span>`;
+      const easier = GOALS.slice().reverse().find(g => g - 1 > r.goal);
+      const lever = L.P >= 2 ? `前半は罰打で${L.P}打失っています。後半はOBや池の危ないところを避けるだけで取り返せます。`
+        : L.three >= 2 ? `前半は3パット以上で${L.three}打多く打っています。1パット目を寄せることに集中しましょう。`
+        : `前半はグリーンに乗るまでで${Math.max(0, L.A)}打多くかかっています。無理に乗せにいかず、次が打ちやすい場所へ運びましょう。`;
+      plan = budget < parB
+        ? `後半を全部パーでも${goalLabel(r.goal)}には届きません。${easier ? `目標を${easier}切りに変えると、後半の目標打数を出し直せます。` : ""}`
+        : budget >= tb
+        ? `後半は${budget}打以内で${goalLabel(r.goal)}。後半の目標どおり（${tb}打）で達成です。${budget > tb ? `${budget - tb}打の余裕があるので、危ないところは安全に。` : ""}`
+        : `後半は${budget}打以内で${goalLabel(r.goal)}。後半の目標（${tb}打）より${tb - budget}打少なく回る必要があります。${lever}`;
+      if(budget < parB && easier) plan += `</p><button class="btn sm" style="align-self:flex-start" data-rgoal="${easier - 1}">目標を${easier}切りにする</button><p>`;
+    }
+    const wf = whatIfHtml(L, 0, false);
+    return `<div class="shbox" role="dialog" aria-modal="true" aria-labelledby="hfT">
+      <div class="fhead"><span id="hfT">前半おつかれさまでした</span><span>${r.start === 10 ? "IN" : "OUT"}</span></div>
+      <div class="bigtotal sm"><b>${s}</b><span class="${s - par < 0 ? "under" : ""}">${diffStr(s - par)}</span></div>
+      ${badge ? `<div class="badges">${badge}</div>` : ""}
+      ${plan ? `<div class="info"><b>後半の作戦</b><p>${plan}</p></div>` : ""}
+      ${L.n ? `<h3 class="sub">前半のパーとの差の内訳</h3>${lossHtml(L, false)}` : ""}
+      ${wf ? `<h3 class="sub">もしも</h3>${wf}` : ""}
+      <button class="btn ink full" data-act="halfclose">後半へ</button>
+    </div>`;
+  }
+  function renderHalf(){
+    const el = $("half"), r = cur();
+    if(!halfOpen || !r || r.finished){ el.hidden = true; el.innerHTML = ""; return; }
+    el.hidden = false; el.innerHTML = halfHtml(r);
+  }
+
+  // ================= notices: what's new, home screen, backups =================
+  const NEWS = 3;
+  function newsHtml(){
+    if((extra.news || 0) >= NEWS || !Object.keys(rounds).length) return "";
+    return `<div class="info"><b>新しくなりました</b><p>目標スコア（100切りなど）をホールごとの目標打数に割り振り、ペースと予想を表示／ホールアウト忘れの確認／前半の振り返りと後半の作戦／パーとの差の内訳と「もしも」／ホールごとの過去の成績とメモ／高低差とおすすめクラブ、地図にグリーンがあるコースは手前・奥の距離／スコアカードの画像共有／ホーム画面に追加すると圏外でも起動</p><button class="linkish" style="align-self:flex-start;padding:0" data-act="newsok">閉じる</button></div>`;
+  }
+  const isStandalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+  const inArtifact = () => !!(window.claude && window.claude.use);
+  const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  function installHtml(compact){
+    if(isStandalone() || inArtifact() || (compact && extra.a2hsHidden)) return "";
+    const how = isIOS() ? "Safariの共有ボタン（四角に上矢印）→「ホーム画面に追加」" : "ブラウザのメニュー →「ホーム画面に追加」または「アプリをインストール」";
+    return `<div class="info"><b>ホーム画面に追加して使ってください</b>
+      <p>${isIOS() ? "Safariのままだと、7日以上このページを開かない間に記録が消えることがあります（Safariの仕様）。" : ""}ホーム画面から開けば記録が消えにくくなり、電波のないコースでも起動できます。</p>
+      <p>追加のしかた：${how}</p>
+      ${compact ? `<button class="linkish" style="align-self:flex-start;padding:0" data-act="a2hshide">閉じる</button>` : `<p>ホーム画面のアプリは、Safariとは別の保存場所です。Safariで付けた記録は、Safariで「記録をコピー」→ アプリで「コピーした記録を戻す」で移せます。</p>`}</div>`;
+  }
+  function backupNudge(){
+    if(inArtifact()) return "";
+    const fin = Object.values(rounds).filter(r => r.finished), last = extra.lastBackup || 0;
+    const newer = fin.filter(r => (r.updatedAt || 0) > last).length;
+    if(!newer) return "";
+    const days = last ? Math.floor((Date.now() - last) / 86400000) : null;
+    if(last && days < 14) return "";
+    return `<div class="banner"><span><b>バックアップ</b>　${last ? `前回から${days}日。` : "まだ保存していません。"}${newer}ラウンドが未保存です</span><button class="btn sm" data-act="backup">保存</button></div>`;
+  }
+
+
+  // ================= course data from OpenStreetMap: greens and holes, where volunteers have mapped them =================
+  const osm = { key: "", state: "", greens: [], holes: [] };
+  const toXY = (o, p) => [(p[1] - o.lng) * Math.cos(rad(o.lat)) * 111320, (p[0] - o.lat) * 110574];
+  function centroid(pts){
+    let a = 0, x = 0, y = 0; const o = { lat: pts[0][0], lng: pts[0][1] };
+    const q = pts.map(p => toXY(o, p));
+    for(let i = 0; i < q.length; i++){ const [x1, y1] = q[i], [x2, y2] = q[(i + 1) % q.length], c = x1 * y2 - x2 * y1; a += c; x += (x1 + x2) * c; y += (y1 + y2) * c; }
+    if(Math.abs(a) < 1e-6) return [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
+    x /= 3 * a; y /= 3 * a;
+    return [+(o.lat + y / 110574).toFixed(7), +(o.lng + x / (Math.cos(rad(o.lat)) * 111320)).toFixed(7)];
+  }
+  // metres from p to the polyline pts
+  function lineDist(p, pts){
+    const o = { lat: p.lat, lng: p.lng }; let best = Infinity;
+    for(let i = 0; i < pts.length - 1; i++){
+      const [ax, ay] = toXY(o, pts[i]), [bx, by] = toXY(o, pts[i + 1]), dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+      const t = L ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L)) : 0;
+      best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy));
+    }
+    if(pts.length === 1){ const [ax, ay] = toXY(o, pts[0]); best = Math.hypot(ax, ay); }
+    return best;
+  }
+  // front and back edge of a green along the line from the player through its centre (yards)
+  function frontBack(me, g){
+    const o = { lat: me.lat, lng: me.lng }, [tx, ty] = toXY(o, g.c), len = Math.hypot(tx, ty);
+    if(len < 5) return null;
+    const ux = tx / len, uy = ty / len, hits = [];
+    const q = g.pts.map(p => toXY(o, p));
+    for(let i = 0; i < q.length; i++){
+      const [ax, ay] = q[i], [bx, by] = q[(i + 1) % q.length], ex = bx - ax, ey = by - ay, den = ux * ey - uy * ex;
+      if(Math.abs(den) < 1e-9) continue;
+      const t = (ax * ey - ay * ex) / den, u = (ax * uy - ay * ux) / den;
+      if(u >= 0 && u <= 1 && t > 0) hits.push(t);
+    }
+    if(hits.length < 2) return null;
+    return { f: Math.round(Math.min(...hits) / 0.9144), b: Math.round(Math.max(...hits) / 0.9144) };
+  }
+  async function osmLoad(p){
+    const key = p.lat.toFixed(2) + "," + p.lng.toFixed(2);
+    if(osm.key === key) return;
+    osm.key = key; osm.state = "loading";
+    const hit = (extra.osm || {})[key];
+    if(hit && Date.now() - hit.at < 30 * 86400000){ Object.assign(osm, { greens: hit.greens, holes: hit.holes, state: "ok" }); osmReady(); return; }
+    const q = `[out:json][timeout:20];(way["golf"="green"](around:2500,${p.lat.toFixed(5)},${p.lng.toFixed(5)});way["golf"="hole"](around:2500,${p.lat.toFixed(5)},${p.lng.toFixed(5)}););out tags geom;`;
+    try{
+      const res = await fetch("https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(q));
+      if(!res.ok) throw new Error("http " + res.status);
+      const d = await res.json(), greens = [], holes = [];
+      (d.elements || []).forEach(e => {
+        if(e.type !== "way" || !Array.isArray(e.geometry) || !e.tags) return;
+        const pts = e.geometry.map(g => [+g.lat.toFixed(6), +g.lon.toFixed(6)]);
+        if(e.tags.golf === "green" && pts.length >= 3) greens.push({ pts, c: centroid(pts) });
+        if(e.tags.golf === "hole" && pts.length >= 2) holes.push({ ref: parseInt(e.tags.ref, 10) || 0, par: parseInt(e.tags.par, 10) || 0, pts });
+      });
+      Object.assign(osm, { greens, holes, state: "ok" });
+      extra.osm = extra.osm || {}; extra.osm[key] = { at: Date.now(), greens, holes };
+      Object.keys(extra.osm).sort((a, b) => extra.osm[b].at - extra.osm[a].at).slice(6).forEach(k => delete extra.osm[k]);
+      saveExtra(); osmReady();
+    }catch(e){ osm.state = "error"; osm.key = ""; }
+  }
+  // the green of the hole being played: the mapped hole line with this number that passes nearest the player, then the green at its end
+  function osmGreenForHole(n){
+    if(!geo.me || !osm.greens.length) return null;
+    const hs = osm.holes.filter(h => h.ref === n).map(h => ({ h, d: lineDist(geo.me, h.pts) })).sort((a, b) => a.d - b.d);
+    if(!hs.length || hs[0].d > 120) return null;
+    const end = hs[0].h.pts[hs[0].h.pts.length - 1];
+    const g = osm.greens.map(g => ({ g, d: meters({ lat: end[0], lng: end[1] }, { lat: g.c[0], lng: g.c[1] }) })).sort((a, b) => a.d - b.d)[0];
+    return g && g.d < 70 ? g.g : null;
+  }
+  function setGreen(g, auto){
+    geo.target = { lat: g.c[0], lng: g.c[1] }; geo.green = g; geo.greenAuto = !!auto; geo.pending = null;
+    drawGeo(); elevCheck(); renderGeo();
+  }
+  function osmReady(){
+    if($("geo").hidden) return;
+    geo.osmTried = true;
+    const r = cur();
+    if(!geo.target && r && !r.finished){ const g = osmGreenForHole(holeIdx(r) + 1); if(g){ setGreen(g, true); return; } }
+    drawGeo(); renderGeo();
+  }
+
+  // ================= elevation: GSI elevation tiles, decoded on the phone =================
+  // Tries the 5 m laser survey first, then the 5 m photogrammetry sets, then the 10 m set that covers all of Japan.
+  const DEM = [["dem5a", 15], ["dem5b", 15], ["dem5c", 15], ["dem", 14]];
+  const demCache = new Map();
+  async function decodeDem(blob){
+    let src;
+    try{ src = await createImageBitmap(blob, { colorSpaceConversion: "none", premultiplyAlpha: "none" }); }
+    catch(e){ src = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = URL.createObjectURL(blob); }); }
+    const c = document.createElement("canvas"); c.width = c.height = 256;
+    const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(src, 0, 0);
+    const d = g.getImageData(0, 0, 256, 256).data, a = new Float32Array(65536);
+    for(let i = 0; i < 65536; i++){
+      const v = d[i * 4] * 65536 + d[i * 4 + 1] * 256 + d[i * 4 + 2];
+      a[i] = v === 8388608 ? NaN : (v < 8388608 ? v : v - 16777216) * 0.01;   // (128,0,0) = no data
+    }
+    return a;
+  }
+  function demTile(k, z, x, y){
+    const key = k + "/" + z + "/" + x + "/" + y;
+    if(demCache.has(key)) return demCache.get(key);
+    const p = fetch(`https://cyberjapandata.gsi.go.jp/xyz/${k}_png/${z}/${x}/${y}.png`)
+      .then(res => res.ok ? res.blob().then(decodeDem) : null)
+      .catch(() => { demCache.delete(key); return null; });   // offline: try again next time
+    demCache.set(key, p);
+    return p;
+  }
+  async function elevAt(p){
+    for(const [k, z] of DEM){
+      const n = 2 ** z, xf = (p.lng + 180) / 360 * n, lr = rad(p.lat);
+      const yf = (1 - Math.log(Math.tan(lr) + 1 / Math.cos(lr)) / Math.PI) / 2 * n;
+      const tx = Math.floor(xf), ty = Math.floor(yf);
+      const a = await demTile(k, z, tx, ty);
+      if(!a) continue;
+      const h = a[Math.min(255, Math.floor((yf - ty) * 256)) * 256 + Math.min(255, Math.floor((xf - tx) * 256))];
+      if(!isNaN(h)) return { h, src: k };
+    }
+    return null;
+  }
+  let elevKey = "";
+  const elevKeyNow = () => geo.me && geo.target ? geo.me.lat.toFixed(4) + "," + geo.me.lng.toFixed(4) + "|" + geo.target.lat.toFixed(6) + "," + geo.target.lng.toFixed(6) : "";
+  function elevCheck(){
+    const key = elevKeyNow();
+    if(!key || key === elevKey) return;
+    elevKey = key;
+    Promise.all([elevAt(geo.me), elevAt(geo.target)]).then(([a, b]) => {
+      if(key !== elevKey) return;
+      geo.elev = { key, dh: a && b ? b.h - a.h : null };
+      renderGeo();
+    }).catch(() => {});
+  }
+
+  // ================= share the scorecard as an image =================
+  let shareFile = null;
+  async function fontsReady(text){
+    if(!(document.fonts && document.fonts.load)) return;
+    const all = Promise.all([
+      document.fonts.load('900 120px "Sofia Sans Extra Condensed"', "0123456789+-±"),
+      document.fonts.load('800 60px "Sofia Sans Extra Condensed"', "0123456789+-±OUTINH"),
+      document.fonts.load('700 40px "BIZ UDPGothic"', text),
+      document.fonts.load('400 40px "BIZ UDPGothic"', text)
+    ]).catch(() => {});
+    await Promise.race([all, new Promise(res => setTimeout(res, 2500))]);
+  }
+  async function cardImage(r){
+    const t = totals(r), W = 1080, H = 1350, X = 60, CW = W - 2 * X;
+    const NUM = '"Sofia Sans Extra Condensed","Arial Narrow",sans-serif', JP = '"BIZ UDPGothic","Hiragino Sans","Yu Gothic",sans-serif';
+    const C = { paper: "#FFFFFF", ground: "#ECEEE7", ink: "#1E1F1B", muted: "#686B61", rule: "#CDD0C6", flag: "#F5C400", under: "#D2362B", amber: "#9A5B00", amberSoft: "#F7E9C8" };
+    const title = r.course || "ラウンド", meta = fmtDate(r.date) + (r.start === 10 ? "　INスタート" : "　OUTスタート");
+    const full = t.n === 18, gap = r.goal && full ? t.s - r.goal : null;
+    const prev = Object.values(rounds).filter(x => x.id !== r.id && x.holes.every(played)).map(x => totals(x).s);
+    const badges = [];
+    if(gap != null) badges.push(gap <= 0 ? [goalLabel(r.goal) + " 達成", true] : [goalLabel(r.goal) + "まで あと" + gap + "打", false]);
+    if(full && prev.length && t.s < Math.min(...prev)) badges.push(["自己ベスト更新", true]);
+    await fontsReady(title + meta + badges.map(b => b[0]).join("") + "パットOB池などパーオン入力済みホールスコアゴルフ打数カウンター目標");
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const g = c.getContext("2d");
+    g.fillStyle = C.ground; g.fillRect(0, 0, W, H);
+    const pennant = (x, y, s) => { g.fillStyle = C.ink; g.fillRect(x, y, 5 * s, 62 * s); g.fillStyle = C.flag; g.beginPath(); g.moveTo(x + 5 * s, y); g.lineTo(x + 48 * s, y); g.lineTo(x + 38 * s, y + 14 * s); g.lineTo(x + 48 * s, y + 28 * s); g.lineTo(x + 5 * s, y + 28 * s); g.closePath(); g.fill(); };
+    const fit = (text, max) => { if(g.measureText(text).width <= max) return text; let s = text; while(s.length > 1 && g.measureText(s + "…").width > max) s = s.slice(0, -1); return s + "…"; };
+    // header
+    pennant(X, 62, 1);
+    g.textBaseline = "alphabetic"; g.textAlign = "left";
+    g.fillStyle = C.ink; g.font = `700 50px ${JP}`; g.fillText(fit(title, CW - 70), X + 70, 108);
+    g.fillStyle = C.muted; g.font = `400 30px ${JP}`; g.fillText(meta, X + 70, 152);
+    // big total
+    g.fillStyle = C.ink; g.font = `900 300px ${NUM}`; g.fillText(String(t.s), X - 8, 470);
+    const tw = g.measureText(String(t.s)).width;
+    g.fillStyle = t.diff < 0 ? C.under : C.muted; g.font = `800 110px ${NUM}`; g.fillText(diffStr(t.diff), X + tw + 18, 470);
+    if(!full){ g.fillStyle = C.muted; g.font = `400 30px ${JP}`; g.fillText(`入力済み ${t.n}/18ホール`, X + tw + 22, 360); }
+    // badges
+    let bx = X;
+    badges.forEach(([txt, good]) => {
+      g.font = `700 36px ${JP}`; const w = g.measureText(txt).width + 48;
+      g.fillStyle = good ? C.flag : C.amberSoft; g.beginPath(); g.roundRect ? g.roundRect(bx, 508, w, 62, 31) : g.rect(bx, 508, w, 62); g.fill();
+      g.fillStyle = good ? C.ink : C.amber; g.fillText(txt, bx + 24, 552); bx += w + 14;
+    });
+    // scorecard blocks
+    const LW = 120, COL = 82, SW = CW - LW - 9 * COL, RH = [60, 48, 96, 52], BH = RH.reduce((a, b) => a + b, 0);
+    const mark = (cx, cy, sc, par) => {
+      const d = sc - par, under = sc === 1 || d < 0;
+      g.fillStyle = g.strokeStyle = under ? C.under : C.ink; g.lineWidth = 3;
+      g.font = `800 52px ${NUM}`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(String(sc), cx, cy + 3);
+      const circle = rr => { g.beginPath(); g.arc(cx, cy, rr, 0, Math.PI * 2); g.stroke(); };
+      const square = rr => g.strokeRect(cx - rr, cy - rr, rr * 2, rr * 2);
+      if(sc === 1 || d <= -2){ circle(29); circle(36); } else if(d === -1) circle(29);
+      else if(d === 1) square(28); else if(d >= 2){ square(28); square(35); }
+    };
+    const block = (y, a, b, label) => {
+      g.fillStyle = C.paper; g.fillRect(X, y, CW, BH);
+      g.fillStyle = C.ink; g.fillRect(X, y, CW, RH[0]);
+      let yy = y;
+      ["H", "PAR", "スコア", "パット"].forEach((l, k) => {
+        g.textAlign = "left"; g.textBaseline = "middle"; g.font = `700 26px ${JP}`; g.fillStyle = k ? C.muted : C.paper;
+        g.fillText(l, X + 16, yy + RH[k] / 2);
+        yy += RH[k];
+        if(k && k < 3){ g.fillStyle = C.rule; g.fillRect(X, yy - 1, CW, 2); }
+      });
+      g.fillStyle = C.rule; g.fillRect(X, y + RH[0] + RH[1] - 1, CW, 2);
+      for(let i = a; i < b; i++){
+        const h = r.holes[i], x = X + LW + (i - a) * COL, cx = x + COL / 2;
+        g.fillStyle = C.rule; g.fillRect(x - 1, y + RH[0], 2, BH - RH[0]);
+        g.textAlign = "center"; g.textBaseline = "middle";
+        g.fillStyle = C.paper; g.font = `800 36px ${NUM}`; g.fillText(String(i + 1), cx, y + RH[0] / 2 + 2);
+        g.fillStyle = C.muted; g.font = `700 34px ${NUM}`; g.fillText(String(h.par), cx, y + RH[0] + RH[1] / 2 + 2);
+        if(played(h)){
+          mark(cx, y + RH[0] + RH[1] + RH[2] / 2, strokes(h), h.par);
+          g.fillStyle = C.ink; g.font = `700 36px ${NUM}`; g.textAlign = "center"; g.fillText(String(h.putts), cx, y + RH[0] + RH[1] + RH[2] + RH[3] / 2 + 2);
+        }
+      }
+      const sx = X + LW + 9 * COL, tt = totals(r, a, b);
+      g.fillStyle = C.ground; g.fillRect(sx, y + RH[0], SW, BH - RH[0]);
+      g.fillStyle = C.ink; g.fillRect(sx - 2, y, 4, BH);
+      g.fillStyle = C.paper; g.font = `700 26px ${JP}`; g.textAlign = "center"; g.fillText(label, sx + SW / 2, y + RH[0] / 2);
+      g.fillStyle = C.muted; g.font = `700 34px ${NUM}`; g.fillText(String(parSum(r, a, b)), sx + SW / 2, y + RH[0] + RH[1] / 2 + 2);
+      if(tt.n){
+        g.fillStyle = C.ink; g.font = `900 60px ${NUM}`; g.fillText(String(tt.s), sx + SW / 2, y + RH[0] + RH[1] + RH[2] / 2 + 4);
+        g.font = `800 36px ${NUM}`; g.fillText(String(tt.pt), sx + SW / 2, y + RH[0] + RH[1] + RH[2] + RH[3] / 2 + 2);
+      }
+      g.strokeStyle = C.ink; g.lineWidth = 4; g.strokeRect(X + 2, y + 2, CW - 4, BH - 4);
+    };
+    block(626, 0, 9, "OUT"); block(626 + BH + 26, 9, 18, "IN");
+    // stats line
+    let sx = X; const sy = 626 + 2 * BH + 26 + 76;
+    const gir = r.holes.filter(h => played(h) && h.on <= h.par - 2).length;
+    [["パット", t.pt], ["OB", t.ob], ["池など", t.pen], ["パーオン", gir]].forEach(([k, v]) => {
+      g.textAlign = "left"; g.textBaseline = "alphabetic";
+      g.fillStyle = C.muted; g.font = `400 30px ${JP}`; g.fillText(k, sx, sy); sx += g.measureText(k).width + 8;
+      g.fillStyle = C.ink; g.font = `800 50px ${NUM}`; g.fillText(String(v), sx, sy + 2); sx += g.measureText(String(v)).width + 34;
+    });
+    // footer
+    pennant(X, H - 66, 0.45);
+    g.fillStyle = C.muted; g.font = `700 26px ${JP}`; g.textAlign = "left"; g.fillText("ゴルフ打数カウンター", X + 32, H - 40);
+    return c;
+  }
+  async function openShare(){
+    const r = cur(); if(!r) return;
+    toast("画像を作っています…");
+    let blob = null;
+    try{ const c = await cardImage(r); blob = await new Promise(res => c.toBlob(res, "image/png")); }catch(e){}
+    if(!blob){ toast("画像を作れませんでした"); return; }
+    shareFile = new File([blob], `golf-score-${r.date}.png`, { type: "image/png" });
+    let can = false; try{ can = !!(navigator.canShare && navigator.canShare({ files: [shareFile] })); }catch(e){}
+    const el = $("shv"); el.hidden = false;
+    el.innerHTML = `<div class="shbox" role="dialog" aria-modal="true" aria-label="スコアカードの画像">
+      <img src="${URL.createObjectURL(blob)}" alt="スコアカードの画像">
+      ${can ? `<button class="btn ink full" data-act="sharego">LINEなどに送る・写真に保存</button>` : `<p class="note">画像を長押しすると、写真に保存できます。</p>`}
+      <div class="grow"><button class="btn" style="flex:1" data-act="sharesave">ファイルに保存</button><button class="btn" style="flex:1" data-act="shareclose">閉じる</button></div>
+    </div>`;
+  }
+  function closeShare(){ const el = $("shv"), img = el.querySelector("img"); if(img) URL.revokeObjectURL(img.src); el.hidden = true; el.innerHTML = ""; shareFile = null; }
+  function shareGo(){ if(shareFile) navigator.share({ files: [shareFile] }).catch(() => {}); }
+  function shareSave(){ if(!shareFile) return; const a = document.createElement("a"); a.href = URL.createObjectURL(shareFile); a.download = shareFile.name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
+
+  // ================= practice → scores: did the practice show up? =================
+  const THEME_METRIC = {
+    "パター：距離感": { k: "threeRate", n: "3パット率", pct: true },
+    "ドライバー：方向性": { k: "obPerRound", n: "OB/ラウンド" },
+    "アイアン：グリーンに乗せる": { k: "girRate", n: "パーオン率", pct: true, up: true },
+    "コースマネジメント": { k: "penPerRound", n: "池など/ラウンド" },
+    "ショートアイアンとアプローチ": { k: "par3", n: "パー3の平均", sg: true },
+    "フェアウェイウッド・2打目": { k: "par5", n: "パー5の平均", sg: true },
+    "今の良い流れを保つ": { k: "perHole", n: "1ホールの平均", sg: true }
+  };
+  const THEME_SHOOT = { "パター：距離感": ["PT", "face"], "ドライバー：方向性": ["1W", "dtl"], "アイアン：グリーンに乗せる": ["7I", "face"], "ショートアイアンとアプローチ": ["AW", "face"], "フェアウェイウッド・2打目": ["5W", "dtl"], "今の良い流れを保つ": ["1W", "face"] };
+  const metricOf = (st, k) => k === "par3" ? st.byPar[3] : k === "par5" ? st.byPar[5] : st[k];
+  function practiceEffect(){
+    const log = extra.practice || [], rs = Object.values(rounds);
+    return [...new Set(log.map(l => l.theme))].map(th => {
+      const ds = log.filter(l => l.theme === th).map(l => l.date).sort(), first = ds[0], m = THEME_METRIC[th];
+      const bR = rs.filter(r => r.date < first), aR = rs.filter(r => r.date > first);
+      const b = stats(bR), a = stats(aR);
+      return { th, count: ds.length, first, m, nAfter: aR.filter(r => r.holes.some(played)).length,
+        before: m && b.holes >= 9 ? metricOf(b, m.k) : null, after: m && a.holes >= 9 ? metricOf(a, m.k) : null,
+        vids: (videos || []).filter(v => v.theme === th).length };
+    });
+  }
+  function effHtml(e){
+    const fmt = v => v == null ? "—" : e.m.pct ? Math.round(v * 100) + "%" : e.m.sg ? (v >= 0 ? "+" : "") + v.toFixed(2) : v.toFixed(1);
+    let verdict = "";
+    if(e.before != null && e.after != null){
+      const d = (e.after - e.before) * (e.m.up ? 1 : -1), th = e.m.pct ? 0.03 : e.m.sg ? 0.1 : 0.3;
+      verdict = d >= th ? `<span class="good">良くなっています</span>` : d <= -th ? "悪くなっています" : "まだ大きな変化はありません";
+    }
+    return `<div class="eff"><b>${esc(e.th)}</b><span>${fmtDate(e.first)}から 練習${e.count}回${e.vids ? `・動画${e.vids}本` : ""}</span>
+      ${!e.m ? "" : e.before != null && e.after != null
+        ? `<span>${e.m.n} <span class="num">${fmt(e.before)}</span> → <span class="num">${fmt(e.after)}</span>（練習を始めてから${e.nAfter}ラウンド）　${verdict}</span>`
+        : e.before == null ? `<span>練習を始める前の記録が少なく、比べられません</span>` : `<span>練習を始めてからのラウンドを記録すると、ここで比べられます</span>`}</div>`;
+  }
+
+  if(/[?&]test=1/.test(location.search)) window.__golf = { myPars, paceOf, lossOf, lossSum, stats, suggestClub, elevAt, cardImage, practiceEffect, frontBack, centroid, rounds: () => rounds, extra: () => extra, geo: () => geo };
 
   loadLocal();
   if(!curId || !rounds[curId]) curId = pickCurrent();
