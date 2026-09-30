@@ -1,7 +1,7 @@
 // Keeps the app usable on courses with weak or no signal.
 // The page itself: network first (so updates show up), the saved copy when the network is slow or gone.
 // Libraries, fonts, map photos, elevation tiles: saved on first use, then served from the phone.
-const VERSION = "golf-v3-20260929";
+const VERSION = "golf-v5-20260930";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 const RUNTIME = "golf-runtime-1";
 const TILES = "golf-tiles-1";

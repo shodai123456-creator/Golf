@@ -7,8 +7,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="ゴルフ打数">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#ECEEE7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#111310" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#EEF2EE" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0A0F0C" media="(prefers-color-scheme: dark)">
 <style>body{margin:0}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
 <script>if("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 <title>ゴルフ打数カウンター</title>
@@ -17,416 +17,555 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" crossorigin="anonymous"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sofia+Sans+Extra+Condensed:wght@600;800;900&family=BIZ+UDPGothic:wght@400;700&display=swap" crossorigin="anonymous">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800;900&display=swap" crossorigin="anonymous">
 <style>
-/* Layout: phone-first single column. A printed mini scorecard on top, the giant stroke number in the middle,
-   big action slabs in the thumb zone. Each colour has one job:
-   flag yellow = now (current hole, shot) / putting green = putts only / red = under par only / graphite = pencil. */
+/* ゴルフ打数カウンター — iPhone-first.
+   Each colour is a golf object with one job: pin-flag yellow = now (current hole, shot) / green = putts /
+   red = under par and red stakes / white stake = OB / ink = the scorecard pencil.
+   Numbers are leaderboard plates: every score is set in Bitter, black, red only when under par.
+   During play the eyes read the top of the screen and the thumb works the bottom. */
 :root{
-  --paper:#FFFFFF; --ground:#ECEEE7; --graphite:#1E1F1B; --muted:#686B61; --rule:#CDD0C6;
-  --flag:#F5C400; --on-flag:#1E1F1B;
-  --green:#2D6A45; --on-green:#FFFFFF;
-  --under:#D2362B;
-  --amber:#9A5B00; --amber-soft:#F7E9C8;
-  --stake-white:#FFFFFF; --stake-red:#D2362B;
-  --scrim:rgba(30,31,27,.5);
-  --f-num:"Sofia Sans Extra Condensed","Arial Narrow",sans-serif;
-  --f-jp:"BIZ UDPGothic","Hiragino Sans","Yu Gothic",sans-serif;
+  --bg:#EEF2EE; --plate:#FFFFFF; --ink:#0F1A14; --sub:#59655D; --line:#D3DBD4; --fill:#E2E8E2;
+  --flag:#FFC700; --on-flag:#0F1A14; --green:#127547; --on-green:#FFFFFF; --red:#D2372B;
+  --amber:#9E5A00; --amber-soft:#FBEED0; --stake:#FFFFFF;
+  --scrim:rgba(8,16,11,.42); --bar:rgba(246,249,246,.84);
+  --f-num:"Bitter","Rockwell","Georgia",serif;
+  --f-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Noto Sans CJK JP","Yu Gothic UI",sans-serif;
+  --tabh:58px; --sb:env(safe-area-inset-bottom,0px); --st:env(safe-area-inset-top,0px);
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --paper:#1A1D18; --ground:#111310; --graphite:#ECEDE6; --muted:#9A9E92; --rule:#30352D;
-  --flag:#F5C400; --on-flag:#1E1F1B; --green:#5DB57B; --on-green:#0E1A12; --under:#FF6F61;
-  --amber:#E9B04F; --amber-soft:#3A2C12; --stake-white:#F2F3EE; --stake-red:#FF6F61;
-  --scrim:rgba(0,0,0,.62); color-scheme:dark}}
+  --bg:#0A0F0C; --plate:#151D18; --ink:#E8F0EA; --sub:#98A69D; --line:#28332C; --fill:#1E2923;
+  --green:#34A56C; --on-green:#06140C; --red:#FF6B5F; --amber:#EDB354; --amber-soft:#382A10; --stake:#EEF3EF;
+  --scrim:rgba(0,0,0,.6); --bar:rgba(17,23,19,.84); color-scheme:dark}}
 :root[data-theme="dark"]{
-  --paper:#1A1D18; --ground:#111310; --graphite:#ECEDE6; --muted:#9A9E92; --rule:#30352D;
-  --flag:#F5C400; --on-flag:#1E1F1B; --green:#5DB57B; --on-green:#0E1A12; --under:#FF6F61;
-  --amber:#E9B04F; --amber-soft:#3A2C12; --stake-white:#F2F3EE; --stake-red:#FF6F61;
-  --scrim:rgba(0,0,0,.62); color-scheme:dark}
+  --bg:#0A0F0C; --plate:#151D18; --ink:#E8F0EA; --sub:#98A69D; --line:#28332C; --fill:#1E2923;
+  --green:#34A56C; --on-green:#06140C; --red:#FF6B5F; --amber:#EDB354; --amber-soft:#382A10; --stake:#EEF3EF;
+  --scrim:rgba(0,0,0,.6); --bar:rgba(17,23,19,.84); color-scheme:dark}
 
 *{box-sizing:border-box}
-body{background:var(--ground);color:var(--graphite);font-family:var(--f-jp);font-size:15px;line-height:1.55;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html.locked,html.locked body{overflow:hidden}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:16px;line-height:1.5;-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none}
 button{font:inherit;color:inherit;touch-action:manipulation}
-button:focus-visible,input:focus-visible{outline:3px solid var(--graphite);outline-offset:2px}
-.app{max-width:520px;margin:0 auto;padding:10px 16px 28px;display:flex;flex-direction:column;gap:10px}
-.top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
-h1{margin:0;font-size:15px;font-weight:700}
-.sync{font-size:11px;color:var(--muted)}
-.tabs{display:grid;grid-template-columns:repeat(5,1fr);border:1.5px solid var(--graphite);border-radius:10px;overflow:hidden;background:var(--paper)}
-.tab{appearance:none;border:0;background:none;padding:8px 0;font-weight:700;font-size:14px;color:var(--muted);cursor:pointer}
-.tab + .tab{border-left:1px solid var(--rule)}
-.tab[aria-selected="true"]{background:var(--graphite);color:var(--paper)}
-#main{display:flex;flex-direction:column;gap:10px}
+button,label,.tab,.slab,.pen,.chip{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+button:focus-visible,input:focus-visible,select:focus-visible,label:focus-within{outline:3px solid var(--flag);outline-offset:2px}
+.num{font-family:var(--f-num);font-variant-numeric:lining-nums tabular-nums}
+.app{max-width:560px;margin:0 auto;padding:calc(8px + var(--st)) 16px calc(var(--tabh) + var(--sb) + 28px);display:flex;flex-direction:column;gap:14px}
+body.live .app{padding-bottom:calc(var(--tabh) + var(--sb) + 96px)}
+#main{display:flex;flex-direction:column;gap:14px}
+section{display:flex;flex-direction:column}
+
+/* large title, one per tab */
+.lt{padding:10px 2px 2px}
+.lt h1{margin:0;font-size:31px;line-height:1.15;font-weight:800;letter-spacing:.01em}
+.lt p{margin:4px 0 0;color:var(--sub);font-size:14px}
+.sec{font-size:13px;color:var(--sub);margin:4px 4px 7px;font-weight:600}
+.note{font-size:12.5px;color:var(--sub);margin:7px 4px 0;line-height:1.55}
+.gsmall{font-size:12.5px;color:var(--sub)}
+
+/* bottom tab bar */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:15;display:grid;grid-template-columns:repeat(5,1fr);padding:0 max(8px,calc((100vw - 560px)/2)) var(--sb);height:calc(var(--tabh) + var(--sb));background:var(--bar);-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px);border-top:.5px solid var(--line)}
+.tab{appearance:none;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--sub);font-size:10.5px;font-weight:600;cursor:pointer;padding:6px 0 4px}
+.tab svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab[aria-selected="true"]{color:var(--ink)}
+.tab[aria-selected="true"] svg{stroke-width:2.3}
+.tab[aria-selected="true"] .fl{fill:var(--flag);stroke:var(--ink)}
+
+/* the round, still going: the bar above the tabs that brings it back */
+.minibar{position:fixed;z-index:16;left:max(10px,calc((100vw - 540px)/2));right:max(10px,calc((100vw - 540px)/2));bottom:calc(var(--tabh) + var(--sb) + 8px);display:flex;align-items:center;gap:12px;padding:8px 14px 8px 10px;border:0;border-radius:18px;background:var(--ink);color:var(--plate);text-align:left;cursor:pointer;animation:rise .28s ease-out}
+.minibar .mb-t{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.minibar .mb-t b{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.minibar .mb-t span{font-size:12.5px;opacity:.78;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.minibar .mb-n{font-family:var(--f-num);font-weight:900;font-size:30px;line-height:1;text-align:right}
+.minibar .mb-n small{display:block;font-family:var(--f-ui);font-size:10.5px;font-weight:600;opacity:.75}
+.minibar svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;opacity:.7}
+.minibar .pin{height:34px}
+.minibar .pole{background:var(--plate)}
+@keyframes rise{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+
+/* icons and small round buttons */
+.iconbtn{appearance:none;width:44px;height:44px;border-radius:50%;border:0;background:var(--plate);display:grid;place-items:center;cursor:pointer;color:var(--ink);flex:none}
+.iconbtn svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.iconbtn[aria-pressed="true"]{background:var(--flag);color:var(--on-flag)}
+.chev{width:16px;height:16px;flex:none;fill:none;stroke:var(--sub);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;opacity:.7}
+
+/* round mode: the whole screen, no tabs, nothing to mis-tap */
+.rm,.push{display:block}
+.rm{position:fixed;inset:0;z-index:20;background:var(--bg);overflow-y:auto;overscroll-behavior:contain;animation:rmin .26s ease-out}
+.rm-in{max-width:560px;min-height:100%;margin:0 auto;padding:calc(6px + var(--st)) 14px 0;display:flex;flex-direction:column;gap:10px}
+@keyframes rmin{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+.rm-top{display:flex;align-items:center;gap:8px}
+.rm-title{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;line-height:1.25}
+.rm-title b{font-size:15px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rm-title span{font-size:12px;color:var(--sub)}
+/* the buttons stay under the thumb even when a short screen has to scroll */
+.rm-go{display:flex;flex-direction:column;gap:8px;margin-top:auto;position:sticky;bottom:0;z-index:1;background:var(--bg);padding:4px 0 calc(12px + var(--sb))}
 
 /* scorecard marks: circle = birdie, double circle = eagle or better, square = bogey, double square = double bogey or worse */
-.mk{display:inline-grid;place-items:center;width:1.25em;height:1.25em;line-height:1}
+.mk{display:inline-grid;place-items:center;width:1.3em;height:1.3em;line-height:1}
 .mk.c1,.mk.c2{border:1.5px solid currentColor;border-radius:50%}
 .mk.s1,.mk.s2{border:1.5px solid currentColor;border-radius:2px}
 .mk.c2,.mk.s2{outline:1.5px solid currentColor;outline-offset:1.5px}
-.mk.under{color:var(--under)}
+.mk.under{color:var(--red)}
 
 /* mini scorecard */
-.mini{background:var(--paper);border:1.5px solid var(--graphite)}
-.mrow{display:grid;grid-template-columns:32px repeat(9,minmax(0,1fr)) 36px}
-.mrow + .mrow{border-top:1px solid var(--rule)}
-.mlab{display:grid;place-items:center;font-size:10px;font-weight:700;color:var(--paper);background:var(--graphite)}
-.mc{appearance:none;border:0;border-left:1px solid var(--rule);background:none;height:40px;position:relative;display:grid;place-items:center;padding:0;cursor:pointer;min-width:0}
+.mini{background:var(--plate);border-radius:14px;overflow:hidden}
+.mrow{display:grid;grid-template-columns:34px repeat(9,minmax(0,1fr)) 38px}
+.mrow + .mrow{border-top:1px solid var(--line)}
+.mlab{display:grid;place-items:center;font-size:10px;font-weight:700;color:var(--sub);background:var(--fill)}
+.mc{appearance:none;border:0;border-left:1px solid var(--line);background:none;height:40px;position:relative;display:grid;place-items:center;padding:0;cursor:pointer;min-width:0;color:var(--ink)}
 .mlab + .mc{border-left:0}
-.mc i{position:absolute;top:3px;left:3px;font-style:normal;font-family:var(--f-num);font-weight:600;font-size:10px;line-height:1;color:var(--muted)}
-.mc b{font-family:var(--f-num);font-weight:800;font-size:18px;line-height:1}
+.mc i{position:absolute;top:3px;left:4px;font-style:normal;font-family:var(--f-num);font-weight:600;font-size:9.5px;line-height:1;color:var(--sub)}
+.mc b{font-family:var(--f-num);font-weight:800;font-size:15px;line-height:1;margin-top:9px}
 .mc.cur{background:var(--flag)}
 .mc.cur i,.mc.cur b{color:var(--on-flag)}
 .mc.miss::after{content:"";width:7px;height:7px;border-radius:50%;background:var(--amber)}
-.msum{display:grid;place-items:center;font-family:var(--f-num);font-weight:800;font-size:18px;border-left:1.5px solid var(--graphite);background:var(--ground)}
+.msum{display:grid;place-items:center;font-family:var(--f-num);font-weight:800;font-size:17px;border-left:1px solid var(--line);background:var(--fill)}
 
-/* hole header with pin flag */
-.holehead{display:flex;align-items:center;gap:12px}
-.pin{display:flex;align-items:flex-start;height:48px;flex:none}
-.pole{width:3px;height:100%;background:var(--graphite);border-radius:2px}
-.flag{background:var(--flag);color:var(--on-flag);font-family:var(--f-num);font-weight:900;font-size:30px;line-height:1;padding:4px 18px 5px 8px;min-width:52px;clip-path:polygon(0 0,100% 0,80% 50%,100% 100%,0 100%)}
+/* hole header: pin flag, par, running total */
+.holehead{display:flex;align-items:center;gap:12px;padding:2px 2px 0}
+.pin{display:flex;align-items:flex-start;height:50px;flex:none}
+.pole{width:3px;height:100%;background:var(--ink);border-radius:2px}
+.flag{background:var(--flag);color:var(--on-flag);font-family:var(--f-num);font-weight:900;font-size:30px;line-height:1;padding:5px 19px 6px 8px;min-width:54px;clip-path:polygon(0 0,100% 0,80% 50%,100% 100%,0 100%)}
 .pin.sm{height:36px}
-.pin.sm .flag{font-size:22px;padding:3px 14px 4px 6px;min-width:40px}
-.pars{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--muted)}
-.par{appearance:none;width:32px;height:32px;border:1px solid var(--rule);background:var(--paper);border-radius:8px;font-family:var(--f-num);font-weight:800;font-size:18px;cursor:pointer;color:var(--graphite)}
-.par[aria-pressed="true"]{background:var(--graphite);color:var(--paper);border-color:var(--graphite)}
-.runsum{margin-left:auto;text-align:right;font-size:11px;color:var(--muted);line-height:1.2}
-.runsum b{display:block;font-family:var(--f-num);font-weight:800;font-size:22px;color:var(--graphite)}
+.pin.sm .flag{font-size:20px;padding:4px 14px 5px 6px;min-width:40px}
+.pars{display:flex;align-items:center;gap:2px;padding:3px;border-radius:12px;background:var(--fill);font-size:11px;font-weight:700;color:var(--sub)}
+.pars > span{padding:0 5px 0 6px}
+.par{appearance:none;width:36px;height:34px;border:0;background:none;border-radius:9px;font-family:var(--f-num);font-weight:800;font-size:18px;cursor:pointer;color:var(--sub)}
+.par[aria-pressed="true"]{background:var(--plate);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.runsum{margin-left:auto;text-align:right;font-size:11.5px;color:var(--sub);line-height:1.2}
+.runsum b{display:block;font-family:var(--f-num);font-weight:800;font-size:24px;color:var(--ink)}
+.runsum b.jp{font-family:var(--f-ui);font-size:17px;margin-top:2px}
 .runsum .d{font-size:16px;margin-left:4px}
-.runsum .d.under{color:var(--under)}
+.runsum .d.under{color:var(--red)}
+.runsum .pc{display:block;font-size:12px;font-weight:700;color:var(--ink);margin-top:2px}
+.runsum .pc.warn{color:var(--amber)}
+.pace{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:2px 10px;font-size:13px;color:var(--sub)}
+.pace .pg{font-weight:700;color:var(--on-flag);background:var(--flag);border-radius:999px;padding:0 9px;line-height:1.65}
+.pace b{font-family:var(--f-num);font-weight:800;font-size:17px;color:var(--ink);margin:0 2px}
 
 /* the number */
-.counter{display:flex;flex-direction:column;align-items:center;gap:6px}
-.next{display:flex;align-items:baseline;justify-content:center;gap:6px;line-height:.82}
-.next .lbl{font-size:16px;font-weight:700}
-.next .n{font-family:var(--f-num);font-weight:900;font-size:124px;font-variant-numeric:tabular-nums}
+.counter{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:4px 0 2px}
+.rm-in > *{flex:none}
+.rm .counter{flex:1 0 auto}
+.next{display:flex;align-items:baseline;justify-content:center;gap:8px;line-height:.8}
+.next .lbl{font-size:17px;font-weight:700}
+.next .n{font-family:var(--f-num);font-weight:900;font-size:clamp(118px,20vh,176px);letter-spacing:-.02em;font-variant-numeric:lining-nums}
 .next .u{font-size:22px;font-weight:700}
 .tick{animation:tick .2s ease-out}
-@keyframes tick{from{transform:translateY(-10px);opacity:.3}to{transform:none;opacity:1}}
+@keyframes tick{from{transform:translateY(-12px);opacity:.3}to{transform:none;opacity:1}}
 .trail{display:flex;justify-content:center;align-items:center;gap:7px;flex-wrap:wrap;min-height:18px}
 .m{display:inline-block;flex:none}
 .m.s,.m.p,.m.g{width:13px;height:13px;border-radius:50%}
-.m.s{background:var(--graphite)}
+.m.s{background:var(--ink)}
 .m.p{background:var(--green)}
-.m.g{border:1.5px dashed var(--graphite)}
-.m.o,.m.h{width:6px;height:17px;border:1.5px solid var(--graphite);border-radius:1px 1px 3px 3px}
-.m.o{background:var(--stake-white)}
-.m.h{background:var(--stake-red);border-color:var(--stake-red)}
+.m.g{border:1.5px dashed var(--ink)}
+.m.o,.m.h{width:6px;height:17px;border:1.5px solid var(--ink);border-radius:1px 1px 3px 3px}
+.m.o{background:var(--stake)}
+.m.h{background:var(--red);border-color:var(--red)}
 .m.new{animation:drop .22s ease-out}
 @keyframes drop{from{transform:translateY(-10px) scale(1.3);opacity:0}to{transform:none;opacity:1}}
-.cnote{font-size:13px;color:var(--muted);min-height:1.4em;text-align:center}
+.cnote{font-size:14px;color:var(--sub);min-height:1.4em;text-align:center;text-wrap:balance}
 .cnote.warn{color:var(--amber);font-weight:700}
 
-/* actions */
-.slab{appearance:none;border:0;width:100%;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-radius:22px;cursor:pointer}
-.slab .t{font-size:24px;font-weight:700;letter-spacing:.1em}
-.slab .p{font-family:var(--f-num);font-weight:900;font-size:48px;line-height:1}
-.slab:active{transform:translateY(2px)}
-.shot{background:var(--flag);color:var(--on-flag);height:clamp(96px,15vh,132px)}
-.putt{background:var(--green);color:var(--on-green);height:clamp(66px,10vh,88px)}
+/* actions in the thumb zone */
+.slab{appearance:none;border:0;width:100%;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-radius:24px;cursor:pointer;transition:transform .08s ease-out,filter .08s}
+.slab .t{font-size:25px;font-weight:800;letter-spacing:.12em}
+.slab .p{font-family:var(--f-num);font-weight:900;font-size:50px;line-height:1}
+.slab:active{transform:scale(.985);filter:brightness(.93)}
+.shot{background:var(--flag);color:var(--on-flag);height:clamp(92px,14vh,124px)}
+.putt{background:var(--green);color:var(--on-green);height:clamp(66px,9.5vh,86px)}
 .pens{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.pen{appearance:none;background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:13px;font-weight:700;line-height:1.2;cursor:pointer;min-width:0;color:var(--graphite)}
-.pen small{font-size:11px;font-weight:400;color:var(--muted)}
-.lab{display:inline-flex;align-items:center;gap:5px}
+.pen{appearance:none;background:var(--plate);border:0;border-radius:14px;padding:9px 4px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:13.5px;font-weight:700;line-height:1.2;cursor:pointer;min-width:0;color:var(--ink)}
+.pen small{font-size:11.5px;font-weight:500;color:var(--sub)}
+.pen:active,.btn:active,.row:active,.ropen:active,.mc:active,.chip:active,.gchip:active,.iconbtn:active{filter:brightness(.92)}
+.lab{display:inline-flex;align-items:center;gap:6px}
 .pen:disabled{opacity:.35;cursor:default}
 .foot{display:grid;grid-template-columns:1fr 1fr 1.6fr;gap:8px}
-.btn{appearance:none;border:1px solid var(--rule);background:var(--paper);color:var(--graphite);border-radius:12px;padding:14px 10px;font-weight:700;font-size:15px;line-height:1.2;cursor:pointer}
-.btn.ink{background:var(--graphite);color:var(--paper);border-color:var(--graphite)}
-.btn.sm{padding:7px 12px;font-size:13px;border-radius:9px}
-.btn.danger{color:var(--under);border-color:var(--under)}
-.btn.full{width:100%}
-.btn:disabled{opacity:.4;cursor:default}
-.linkish{appearance:none;border:0;background:none;color:var(--muted);font-size:13px;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:6px}
-.wake{display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;color:var(--muted)}
-.wake input{width:18px;height:18px;accent-color:var(--graphite)}
+.rm .foot{margin:0}
 
-/* panels, intro, form */
-.panel{background:var(--paper);border:1.5px solid var(--graphite);padding:18px 16px;display:flex;flex-direction:column;gap:12px}
-.lead{margin:0;font-size:22px;line-height:1.35;text-wrap:balance}
-.steps{margin:0;padding:0;list-style:none;counter-reset:st;display:flex;flex-direction:column;gap:10px}
-.steps li{counter-increment:st;display:grid;grid-template-columns:24px 1fr;gap:8px;font-size:14px;color:var(--muted)}
-.steps li::before{content:counter(st);font-family:var(--f-num);font-weight:900;font-size:26px;line-height:.9;color:var(--graphite)}
-.steps b{color:var(--graphite)}
-.form{display:flex;flex-direction:column;gap:12px}
-.form label,.flabel{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:700;color:var(--muted)}
-.form input{font:inherit;font-size:16px;padding:10px 12px;border:1px solid var(--rule);border-radius:8px;background:var(--ground);color:var(--graphite);width:100%;min-width:0}
-.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.seg button{appearance:none;border:1px solid var(--rule);background:var(--ground);border-radius:8px;padding:11px 6px;font-weight:700;font-size:14px;cursor:pointer;color:var(--graphite)}
-.seg button[aria-pressed="true"]{background:var(--graphite);color:var(--paper);border-color:var(--graphite)}
-.fhead{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted);font-weight:700}
+/* buttons */
+.btn{appearance:none;border:0;background:var(--plate);color:var(--ink);border-radius:14px;min-height:50px;padding:12px 12px;font-weight:700;font-size:16px;line-height:1.2;cursor:pointer;text-align:center}
+.btn.ink{background:var(--ink);color:var(--plate)}
+.btn.sm{min-height:36px;padding:7px 13px;font-size:14px;border-radius:10px}
+.btn.danger{color:var(--red)}
+.btn.full{width:100%}
+.btn.big{min-height:58px;font-size:17px;border-radius:16px}
+.btn:disabled{opacity:.4;cursor:default}
+.linkish{appearance:none;border:0;background:none;color:var(--sub);font-size:14px;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:8px}
+
+/* plates and grouped lists */
+.panel{background:var(--plate);border-radius:16px;padding:18px 16px;display:flex;flex-direction:column;gap:12px}
+.group{background:var(--plate);border-radius:14px;overflow:hidden;list-style:none;margin:0;padding:0}
+.row{appearance:none;border:0;background:none;width:100%;display:flex;align-items:center;gap:12px;min-height:52px;padding:11px 14px;text-align:left;cursor:pointer;color:var(--ink);font-size:16px;font-weight:600;position:relative}
+.row + .row,.group > li + li{border-top:1px solid var(--line)}
+.row .rt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.row .rt small{font-size:12.5px;font-weight:400;color:var(--sub);line-height:1.45}
+.row .rv{color:var(--sub);font-weight:500;font-size:14px}
+.lead{margin:0;font-size:22px;line-height:1.35;font-weight:800;text-wrap:balance}
+.steps{margin:0;padding:0;list-style:none;counter-reset:st;display:flex;flex-direction:column;gap:12px}
+.steps li{counter-increment:st;display:grid;grid-template-columns:26px 1fr;gap:8px;font-size:14.5px;color:var(--sub)}
+.steps li::before{content:counter(st);font-family:var(--f-num);font-weight:900;font-size:24px;line-height:1;color:var(--ink)}
+.steps b{color:var(--ink)}
+.emptybox{padding:20px 16px;text-align:center;color:var(--sub);font-size:14.5px;background:var(--plate);border-radius:14px}
+
+/* iOS switch; Safari draws its own with the switch attribute */
+input[type=checkbox].sw{appearance:none;-webkit-appearance:none;width:51px;height:31px;border-radius:999px;background:var(--fill);position:relative;flex:none;cursor:pointer;transition:background .2s;margin:0}
+input[type=checkbox].sw::before{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .2s}
+input[type=checkbox].sw:checked{background:var(--green)}
+input[type=checkbox].sw:checked::before{transform:translateX(20px)}
+html.native-switch input[type=checkbox][switch].sw{appearance:auto;-webkit-appearance:auto;width:auto;height:auto;background:none;accent-color:var(--green)}
+html.native-switch input[type=checkbox][switch].sw::before{display:none}
+/* while typing, the keyboard owns the bottom of the screen */
+html.typing .tabbar,html.typing .minibar{display:none}
+
+/* new round form */
+.form{display:flex;flex-direction:column;gap:14px}
+.form label,.flabel{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:700;color:var(--sub)}
+.form input{font:inherit;font-size:17px;padding:12px 13px;border:0;border-radius:12px;background:var(--fill);color:var(--ink);width:100%;min-width:0}
+.form input[type=date]{min-height:48px}
+.chiprow{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:-4px 0 0}
+.chiprow::-webkit-scrollbar{display:none}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:3px;border-radius:12px;background:var(--fill)}
+.seg button,.goalseg button{appearance:none;border:0;background:none;border-radius:9px;padding:10px 4px;font-weight:700;font-size:14.5px;cursor:pointer;color:var(--sub)}
+.seg button[aria-pressed="true"],.goalseg button[aria-pressed="true"]{background:var(--plate);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.goalseg{display:grid;grid-template-columns:repeat(6,1fr);gap:2px;padding:3px;border-radius:12px;background:var(--fill)}
+.goalseg button{font-size:13px;padding:10px 0}
+.fhead{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--sub);font-weight:700}
 .fhead span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bigtotal{display:flex;align-items:baseline;gap:10px}
-.bigtotal b{font-family:var(--f-num);font-weight:900;font-size:76px;line-height:.9}
-.bigtotal span{font-family:var(--f-num);font-weight:800;font-size:26px;color:var(--muted)}
-.bigtotal span.under{color:var(--under)}
-.bigtotal.sm b{font-size:52px}
-.bigtotal.sm span{font-size:20px}
-.stats{display:flex;gap:16px;flex-wrap:wrap;align-items:baseline;font-size:13px;color:var(--muted)}
-.stats b{font-family:var(--f-num);font-weight:800;font-size:20px;color:var(--graphite);margin-left:4px}
+.bigtotal b{font-family:var(--f-num);font-weight:900;font-size:84px;line-height:.9;letter-spacing:-.02em}
+.bigtotal span{font-family:var(--f-num);font-weight:800;font-size:28px;color:var(--sub)}
+.bigtotal span.under{color:var(--red)}
+.bigtotal.sm b{font-size:54px}
+.bigtotal.sm span{font-size:21px}
+.stats{display:flex;gap:6px 16px;flex-wrap:wrap;align-items:baseline;font-size:13.5px;color:var(--sub)}
+.stats b{font-family:var(--f-num);font-weight:800;font-size:21px;color:var(--ink);margin-left:4px}
+
+/* in-progress round on the ラウンド tab */
+.now{background:var(--plate);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:14px;border:2px solid var(--flag)}
+.now-h{display:flex;align-items:center;gap:12px}
+.now-h .nt{min-width:0;display:flex;flex-direction:column}
+.now-h .nt b{font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.now-h .nt span{font-size:14px;color:var(--sub)}
+.now-h .nn{margin-left:auto;text-align:right;font-size:12px;color:var(--sub);flex:none}
+.now-h .nn b{display:block;font-family:var(--f-num);font-weight:900;font-size:32px;line-height:1;color:var(--ink)}
+.lastcard{appearance:none;border:0;background:var(--plate);border-radius:16px;padding:14px 16px;display:grid;grid-template-columns:1fr auto 16px;align-items:center;gap:2px 12px;text-align:left;cursor:pointer;color:var(--ink);width:100%}
+.lastcard .c{font-weight:700;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lastcard .dt{grid-column:1;font-size:13px;color:var(--sub);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.lastcard .n{grid-row:1 / span 2;grid-column:2;font-family:var(--f-num);font-weight:900;font-size:40px;line-height:1}
+.lastcard .chev{grid-row:1 / span 2;grid-column:3}
 
 /* full scorecard, laid out like the printed card */
-.cardhead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
-.cardhead > div:first-child{min-width:0}
-.course{font-size:17px;font-weight:700;overflow-wrap:anywhere}
-.meta{font-size:12px;color:var(--muted)}
-.sc{display:grid;grid-template-columns:44px repeat(9,minmax(0,1fr)) 38px;background:var(--paper);border:1.5px solid var(--graphite)}
-.sc-labels,.sc-col{display:grid;grid-template-rows:26px 26px 42px 30px 26px}
-.sc-labels span{display:flex;align-items:center;padding-left:6px;font-size:10px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--rule)}
-.sc-labels span:first-child{background:var(--graphite);color:var(--paper)}
-.sc-col{appearance:none;border:0;border-left:1px solid var(--rule);background:none;padding:0;cursor:pointer;min-width:0;color:var(--graphite)}
-.sc-col > span{display:grid;place-items:center;border-bottom:1px solid var(--rule);font-family:var(--f-num);font-weight:700;font-size:17px;line-height:1}
+.sc{display:grid;grid-template-columns:44px repeat(9,minmax(0,1fr)) 40px;background:var(--plate);border-radius:14px;overflow:hidden}
+.sc + .sc{margin-top:10px}
+.sc-labels,.sc-col{display:grid;grid-template-rows:28px 26px 44px 30px 26px}
+.sc-labels span{display:flex;align-items:center;padding-left:8px;font-size:10px;font-weight:700;color:var(--sub);border-bottom:1px solid var(--line)}
+.sc-labels span:first-child{background:var(--ink);color:var(--plate)}
+.sc-col{appearance:none;border:0;border-left:1px solid var(--line);background:none;padding:0;cursor:pointer;min-width:0;color:var(--ink)}
+.sc-col > span{display:grid;place-items:center;border-bottom:1px solid var(--line);font-family:var(--f-num);font-weight:700;font-size:16px;line-height:1}
 .sc-col > span:last-child,.sc-labels span:last-child{border-bottom:0}
-.sc-col .h{background:var(--graphite);color:var(--paper);font-weight:800}
+.sc-col .h{background:var(--ink);color:var(--plate);font-weight:800}
 .sc-col.cur .h{background:var(--flag);color:var(--on-flag)}
-.sc-col .p{color:var(--muted)}
-.sc-col .s b{font-weight:800;font-size:19px}
-.sc-col .s .inprog{color:var(--muted)}
-.sc-col.sum{border-left:1.5px solid var(--graphite);background:var(--ground);cursor:default}
-.sc-col.sum .h{font-size:11px}
-.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);align-items:center}
+.sc-col .p{color:var(--sub)}
+.sc-col .s b{font-weight:800;font-size:18px}
+.sc-col .s .inprog{color:var(--sub)}
+.sc-col.sum{background:var(--fill);cursor:default}
+.sc-col.sum .h{font-size:11px;font-family:var(--f-ui)}
+.sc.withgoal .sc-labels,.sc.withgoal .sc-col{grid-template-rows:28px 26px 22px 44px 30px 26px}
+.sc-col > span.g{font-size:13px;font-weight:600;color:var(--sub)}
+.sc-col > span.g.ok{color:var(--ink);font-weight:800}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--sub);align-items:center;margin:10px 4px 0}
 .legend .mk{font-family:var(--f-num);font-weight:800;font-size:13px;margin-right:4px}
 .legend .ex{display:inline-flex;align-items:center}
-.note{font-size:12px;color:var(--muted);margin:0}
 
-/* list */
-.banner{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--amber-soft);border-radius:10px;padding:10px 12px;font-size:13px}
+/* round list */
+.rlist .ropen{appearance:none;border:0;background:none;width:100%;min-width:0;display:grid;grid-template-columns:1fr auto 16px;gap:2px 12px;align-items:center;text-align:left;padding:12px 14px;cursor:pointer;color:var(--ink)}
+.ropen .c{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ropen .dt{grid-column:1;font-size:13px;color:var(--sub);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ropen .n{grid-row:1 / span 2;grid-column:2;font-family:var(--f-num);font-weight:900;font-size:30px;line-height:1}
+.ropen .chev{grid-row:1 / span 2;grid-column:3}
+.st{font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;white-space:nowrap;background:var(--fill);color:var(--sub)}
+.st.play{background:var(--flag);color:var(--on-flag)}
+.st.warn{background:var(--amber-soft);color:var(--amber)}
+.banner{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--amber-soft);border-radius:14px;padding:10px 12px 10px 14px;font-size:14px}
 .banner b{color:var(--amber)}
 .banner span{min-width:0}
-.banner .btn{flex:none;white-space:nowrap}
-.sec{font-size:13px;color:var(--muted);margin:6px 0 8px;font-weight:700}
-.rlist{list-style:none;margin:0;padding:0;background:var(--paper);border:1.5px solid var(--graphite)}
-.rlist li{display:flex;align-items:center;gap:10px;padding:10px 12px}
-.rlist li + li{border-top:1px solid var(--rule)}
-.ropen{appearance:none;border:0;background:none;flex:1;min-width:0;display:grid;grid-template-columns:1fr auto;gap:2px 10px;text-align:left;padding:0;cursor:pointer;color:var(--graphite)}
-.ropen .c{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ropen .dt{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.ropen .n{grid-row:1 / span 2;grid-column:2;font-family:var(--f-num);font-weight:900;font-size:30px;line-height:1;align-self:center}
-.st{font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;white-space:nowrap;background:var(--ground);color:var(--muted);border:1px solid var(--rule)}
-.st.play{background:var(--flag);color:var(--on-flag);border-color:var(--flag)}
-.st.warn{background:var(--amber-soft);color:var(--amber);border-color:var(--amber-soft)}
-.cdel{display:flex;gap:6px;align-items:center;font-size:12px;flex:none}
-.emptybox{padding:18px;text-align:center;color:var(--muted);font-size:14px;border:1px dashed var(--rule);background:var(--paper)}
+.banner .btn{flex:none;white-space:nowrap;min-height:38px}
 
-/* hole-out sheet */
-.scrim{position:fixed;inset:0;background:var(--scrim);display:flex;align-items:flex-end;justify-content:center;z-index:30}
-.sheet{background:var(--paper);width:100%;max-width:520px;border-radius:22px 22px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));max-height:94%;overflow:auto;display:flex;flex-direction:column;gap:12px}
+/* push screen: a round's card and recap */
+.push{position:fixed;inset:0;z-index:22;background:var(--bg);overflow-y:auto;overscroll-behavior:contain;animation:pushin .26s ease-out}
+@keyframes pushin{from{transform:translateX(36px);opacity:0}to{transform:none;opacity:1}}
+.navbar{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:6px;padding:calc(4px + var(--st)) 8px 4px;background:var(--bar);-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px)}
+.backbtn{appearance:none;border:0;background:none;display:flex;align-items:center;gap:2px;font-size:16px;font-weight:600;color:var(--ink);padding:10px 8px 10px 2px;cursor:pointer;min-height:44px}
+.backbtn svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.nb-title{flex:1;min-width:0;text-align:center;font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:0;transition:opacity .15s}
+.push.scrolled .nb-title{opacity:1}
+.navbar .iconbtn{background:none}
+.push .lt h1{font-size:26px}
+.push-in{max-width:560px;margin:0 auto;padding:0 16px calc(28px + var(--sb));display:flex;flex-direction:column;gap:14px}
+
+/* hole-out and other sheets: they rise from the bottom and can be pulled down */
+.scrim{position:fixed;inset:0;background:var(--scrim);display:flex;align-items:flex-end;justify-content:center;z-index:30;animation:fade .2s ease-out}
+.sheet{position:relative;background:var(--plate);width:100%;max-width:560px;border-radius:22px 22px 0 0;padding:8px 16px calc(16px + var(--sb));max-height:94%;overflow:auto;display:flex;flex-direction:column;gap:12px;animation:up .26s cubic-bezier(.2,.8,.2,1);overscroll-behavior:contain}
+.grab{align-self:center;width:38px;height:5px;border-radius:3px;background:var(--line);margin:0 0 2px;flex:none;cursor:grab;position:relative;touch-action:none}
+.grab::before{content:"";position:absolute;left:-70px;right:-70px;top:-10px;bottom:-14px}
+@keyframes up{from{transform:translateY(100%)}to{transform:none}}
+@keyframes fade{from{background:transparent}}
 .sh-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.sh-top h3{margin:0;font-size:17px}
+.sh-top h3{margin:0;font-size:18px}
 .sh-top .pars{margin-left:auto}
 .pick{display:flex;flex-direction:column;gap:8px}
 .pick-h{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .pick-h b{font-size:16px}
-.pick-h small{display:block;font-size:11px;color:var(--muted)}
+.pick-h small{display:block;font-size:12px;color:var(--sub)}
 .step{display:flex;align-items:center;gap:4px;flex:none}
-.step button{appearance:none;width:40px;height:40px;border-radius:10px;border:1px solid var(--rule);background:var(--ground);font-size:20px;cursor:pointer;color:var(--graphite)}
+.step button{appearance:none;width:42px;height:42px;border-radius:12px;border:0;background:var(--fill);font-size:21px;cursor:pointer;color:var(--ink)}
 .step output{min-width:2ch;text-align:center;font-family:var(--f-num);font-weight:900;font-size:30px;line-height:1}
 .chips{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:5px}
-.chip{appearance:none;min-width:0;height:40px;border-radius:8px;border:1px solid var(--rule);background:var(--ground);font-family:var(--f-num);font-weight:800;font-size:20px;cursor:pointer;color:var(--graphite)}
-.chip[aria-pressed="true"]{background:var(--graphite);color:var(--paper);border-color:var(--graphite)}
+.chip{appearance:none;min-width:0;height:44px;border-radius:11px;border:0;background:var(--fill);font-family:var(--f-num);font-weight:800;font-size:20px;cursor:pointer;color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--plate)}
 .pens2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.pen2{display:flex;justify-content:space-between;align-items:center;gap:4px;border:1px solid var(--rule);border-radius:10px;padding:6px 8px;font-size:13px;font-weight:700;min-width:0}
-.pen2 .step button{width:32px;height:32px;font-size:17px}
+.pen2{display:flex;justify-content:space-between;align-items:center;gap:4px;background:var(--bg);border-radius:12px;padding:6px 6px 6px 10px;font-size:14px;font-weight:700;min-width:0}
+.pen2 .lab{white-space:nowrap}
+.pen2 .step button{width:31px;height:34px;font-size:18px;background:var(--plate)}
 .pen2 .step output{font-size:22px}
-.result{display:flex;align-items:center;justify-content:center;gap:14px;background:var(--ground);padding:10px 12px;min-height:78px}
-.result .cell{width:58px;height:58px;display:grid;place-items:center;background:var(--paper);border:1.5px solid var(--graphite);flex:none}
+.result{display:flex;align-items:center;justify-content:center;gap:14px;background:var(--bg);border-radius:14px;padding:10px 12px;min-height:80px}
+.result .cell{width:58px;height:58px;display:grid;place-items:center;background:var(--plate);border-radius:10px;flex:none}
 .result .cell .mk{font-family:var(--f-num);font-weight:900;font-size:30px}
-.result .txt{font-size:14px;color:var(--muted)}
-.result .txt b{display:block;font-size:18px;color:var(--graphite)}
-.warnline{font-size:12px;color:var(--amber);font-weight:700;text-align:center}
-.fine{font-size:11px;color:var(--muted);margin:0}
+.result .txt{font-size:14px;color:var(--sub)}
+.result .txt b{display:block;font-size:18px;color:var(--ink)}
+.warnline{font-size:13px;color:var(--amber);font-weight:700;text-align:center}
+.fine{font-size:12px;color:var(--sub);margin:0}
 .sh-act{display:grid;grid-template-columns:1fr 2fr;gap:8px}
+.sh-act .btn:not(.ink),.sheet .btn:not(.ink){background:var(--fill)}
+.xnote{font-size:14px;color:var(--sub);margin:0}
 
 /* transfer mode */
-.xfer{position:fixed;inset:0;background:var(--ground);z-index:25;overflow:auto;padding:calc(12px + env(safe-area-inset-top,0px)) 16px calc(20px + env(safe-area-inset-bottom,0px))}
-.xin{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.xfer{position:fixed;inset:0;background:var(--bg);z-index:25;overflow:auto;padding:calc(10px + var(--st)) 16px calc(20px + var(--sb));animation:rmin .26s ease-out}
+.xin{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
 .xtop{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.xtop h2{margin:0;font-size:17px}
-.close{appearance:none;width:42px;height:42px;border-radius:10px;border:1px solid var(--rule);background:var(--paper);font-size:20px;cursor:pointer;flex:none;color:var(--graphite)}
-.xnote{font-size:13px;color:var(--muted);margin:0}
+.xtop h2{margin:0;font-size:20px;font-weight:800}
+.close{appearance:none;width:44px;height:44px;border-radius:50%;border:0;background:var(--plate);font-size:20px;cursor:pointer;flex:none;color:var(--ink)}
 .xprog{display:flex;align-items:center;gap:10px;font-family:var(--f-num);font-weight:800;font-size:18px}
-.prog{flex:1;display:grid;grid-template-columns:repeat(18,1fr);gap:2px}
-.prog i{height:6px;background:var(--rule)}
-.prog i.on{background:var(--graphite)}
-.xcard{background:var(--paper);border:1.5px solid var(--graphite)}
-.xhead{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--rule)}
-.xhead .pp{font-size:15px;font-weight:700;color:var(--muted)}
-.xrow{display:flex;justify-content:space-between;align-items:center;padding:8px 14px}
-.xrow + .xrow{border-top:1px solid var(--rule)}
-.xrow > span{font-size:14px;font-weight:700;color:var(--muted)}
-.xrow > span small{display:block;font-size:12px;font-weight:400}
+.prog{flex:1;display:grid;grid-template-columns:repeat(18,1fr);gap:3px}
+.prog i{height:6px;border-radius:3px;background:var(--line)}
+.prog i.on{background:var(--ink)}
+.xcard{background:var(--plate);border-radius:16px;overflow:hidden}
+.xhead{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
+.xhead .pp{font-size:15px;font-weight:700;color:var(--sub)}
+.xrow{display:flex;justify-content:space-between;align-items:center;padding:8px 16px}
+.xrow + .xrow{border-top:1px solid var(--line)}
+.xrow > span{font-size:15px;font-weight:700;color:var(--sub)}
+.xrow > span small{display:block;font-size:12.5px;font-weight:400}
 .xrow b{font-family:var(--f-num);font-weight:900;font-size:42px;line-height:1}
-.xrow.main b{font-size:88px}
-.xrow.zero b{color:var(--muted)}
+.xrow.main b{font-size:90px}
+.xrow.zero b{color:var(--line)}
 .xmiss{padding:16px 14px;display:flex;flex-direction:column;gap:10px;align-items:flex-start;color:var(--amber);font-weight:700}
 .xnav{display:grid;grid-template-columns:1fr 1.4fr;gap:8px}
 
-.toast{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--graphite);color:var(--paper);padding:10px 18px;border-radius:999px;font-size:14px;font-weight:700;opacity:0;transition:opacity .2s;pointer-events:none;z-index:40;max-width:calc(100% - 32px);text-align:center}
-.toast.show{opacity:1}
-/* analysis, swing, companions, data */
-.tab{font-size:13px}
-.kpis{display:grid;grid-template-columns:repeat(3,1fr);background:var(--paper);border:1.5px solid var(--graphite)}
-.kpi{padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
-.kpi + .kpi{border-left:1px solid var(--rule)}
-.kpi:nth-child(4),.kpi:nth-child(5),.kpi:nth-child(6){border-top:1px solid var(--rule)}
+.toast{position:fixed;left:50%;top:calc(10px + var(--st));transform:translate(-50%,-8px);background:var(--ink);color:var(--plate);padding:11px 18px;border-radius:999px;font-size:14px;font-weight:700;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:40;max-width:calc(100% - 32px);text-align:center;line-height:1.45}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* analysis */
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);background:var(--plate);border-radius:16px;overflow:hidden}
+.kpi{padding:12px 12px 10px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.kpi + .kpi{border-left:1px solid var(--line)}
+.kpi:nth-child(4),.kpi:nth-child(5),.kpi:nth-child(6){border-top:1px solid var(--line)}
 .kpi:nth-child(4){border-left:0}
-.kpi span{font-size:11px;color:var(--muted);font-weight:700}
-.kpi b{font-family:var(--f-num);font-weight:900;font-size:28px;line-height:1}
-.kpi small{font-size:11px;color:var(--muted)}
+.kpi span{font-size:11.5px;color:var(--sub);font-weight:700}
+.kpi b{font-family:var(--f-num);font-weight:900;font-size:28px;line-height:1.05}
+.kpi small{font-size:11.5px;color:var(--sub)}
 .parrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.parbox{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:10px;text-align:center}
-.parbox span{font-size:11px;color:var(--muted);font-weight:700}
+.parbox{background:var(--plate);border-radius:14px;padding:10px;text-align:center}
+.parbox span{font-size:12px;color:var(--sub);font-weight:700}
 .parbox b{display:block;font-family:var(--f-num);font-weight:900;font-size:26px}
-.trend{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:8px}
+.trend{background:var(--plate);border-radius:14px;padding:10px 8px}
 .trend svg{display:block;width:100%;height:auto}
-.tip{background:var(--paper);border:1.5px solid var(--graphite);padding:12px 14px;display:flex;flex-direction:column;gap:6px}
-.tip b{font-size:15px}
-.tip p{margin:0;font-size:13px;color:var(--muted)}
-.tip .film{font-size:12px;color:var(--graphite)}
-.plog{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.tip{background:var(--plate);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:7px}
+.tip b{font-size:16px}
+.tip p{margin:0;font-size:14px;color:var(--sub)}
+.tip .film{font-size:13px;color:var(--ink)}
+.tip .btn.sm{background:var(--fill)}
+.plog{font-size:13px;color:var(--sub);display:flex;flex-direction:column;gap:4px;padding:0 4px}
 .rowbtns{display:flex;flex-wrap:wrap;gap:8px}
 .rowbtns .btn{flex:1 1 140px;text-align:center}
-.vlist{list-style:none;margin:0;padding:0;background:var(--paper);border:1.5px solid var(--graphite)}
-.vlist li{display:flex;align-items:center;gap:10px;padding:10px 12px}
-.vlist li + li{border-top:1px solid var(--rule)}
-.vlist .vo{appearance:none;border:0;background:none;flex:1;text-align:left;cursor:pointer;color:var(--graphite);padding:0;display:flex;flex-direction:column}
-.vlist .vo b{font-size:15px}
-.vlist .vo span{font-size:12px;color:var(--muted)}
+h3.sub{margin:0;font-size:15px}
+.loss{display:flex;flex-direction:column;gap:10px}
+.lossbar{display:flex;gap:2px;height:14px;border-radius:7px;overflow:hidden;background:var(--fill)}
+.lossbar i{display:block}
+.lossrow{display:grid;grid-template-columns:12px 1fr auto;gap:10px;align-items:center;font-size:15px;font-weight:700}
+.lossrow .sw{width:12px;height:12px;border-radius:3px}
+.lossrow small{display:block;font-size:12px;font-weight:400;color:var(--sub);line-height:1.4}
+.lossrow b{font-family:var(--f-num);font-weight:800;font-size:24px}
+.ifs{display:flex;flex-direction:column;gap:8px;font-size:14px}
+.ifs div{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.ifs b{font-family:var(--f-num);font-weight:800;font-size:20px;white-space:nowrap}
+.ifs .hit{display:inline-block;color:var(--on-flag);background:var(--flag);border-radius:999px;padding:0 8px;font-size:11.5px;font-weight:700;margin-left:4px}
+.bw{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bw div{background:var(--bg);border-radius:12px;padding:9px 11px;font-size:12.5px;color:var(--sub)}
+.bw b{display:block;font-size:15px;color:var(--ink)}
+.badges{display:flex;flex-wrap:wrap;gap:6px}
+.badge{font-size:13.5px;font-weight:700;padding:3px 12px;border-radius:999px;background:var(--fill);color:var(--ink)}
+/* an achievement flies the pin flag: the notch sits past the words */
+.badge.flag{background:var(--flag);color:var(--on-flag);padding:4px 26px 4px 12px;line-height:1.35}
+.badge.miss{background:var(--amber-soft);color:var(--amber)}
+.eff{background:var(--plate);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:3px;font-size:14px;color:var(--sub)}
+.eff > b{font-size:15px;color:var(--ink)}
+.eff .num{font-weight:800;font-size:18px;color:var(--ink)}
+.eff .good{color:var(--ink);font-weight:700}
+.clubtbl{background:var(--plate);border-radius:14px;overflow:hidden}
+.clubrow{display:flex;align-items:baseline;gap:8px;padding:9px 14px}
+.clubrow + .clubrow{border-top:1px solid var(--line)}
+.clubrow .cl{width:36px;font-weight:700}
+.clubrow .av{font-family:var(--f-num);font-weight:900;font-size:24px}
+.clubrow input{width:72px;font:inherit;font-size:16px;padding:5px 8px;border:0;border-radius:8px;background:var(--fill);color:var(--ink);text-align:right}
+.shotlist{background:var(--plate);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.shotlist div{display:flex;gap:10px;align-items:baseline}
+.shotlist b{font-family:var(--f-num);font-size:18px;margin-left:auto}
+.goalrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.gchip{appearance:none;border:0;background:var(--plate);border-radius:999px;padding:8px 14px;font-weight:700;font-size:14px;cursor:pointer;color:var(--ink);white-space:nowrap;flex:none}
+.gchip[aria-pressed="true"]{background:var(--ink);color:var(--plate)}
+.form .gchip{background:var(--fill);padding:7px 13px;font-size:14px;font-weight:600}
+
+/* swing */
 .addv{display:flex;flex-direction:column;gap:10px}
-.addv select,.addv input[type=text],.pinput{font:inherit;font-size:16px;padding:9px 10px;border:1px solid var(--rule);border-radius:8px;background:var(--ground);color:var(--graphite);min-width:0}
-.swv{position:fixed;inset:0;z-index:27;background:#0E0F0D;color:#fff;display:flex;flex-direction:column;padding:calc(8px + env(safe-area-inset-top,0px)) 0 calc(8px + env(safe-area-inset-bottom,0px))}
+label.btn,label.row{position:relative}
+.vh{position:absolute;left:0;top:0;width:1px;height:1px;margin:0;padding:0;border:0;opacity:0;overflow:hidden}
+.vprev{width:100%;max-height:220px;background:#0B0F0C;border-radius:12px;display:block}
+.vmsg{font-size:14px;line-height:1.55;padding:11px 13px;border-radius:14px;background:var(--amber-soft);color:var(--ink)}
+.addv select,.addv input[type=text],.pinput{font:inherit;font-size:16px;padding:11px 12px;border:0;border-radius:12px;background:var(--fill);color:var(--ink);min-width:0}
+.vlist{list-style:none;margin:0;padding:0;background:var(--plate);border-radius:14px;overflow:hidden}
+.vlist li{display:flex;align-items:center;gap:10px;padding:11px 14px}
+.vlist li + li{border-top:1px solid var(--line)}
+.vlist .vo{appearance:none;border:0;background:none;flex:1;text-align:left;cursor:pointer;color:var(--ink);padding:0;display:flex;flex-direction:column;min-width:0}
+.vlist .vo b{font-size:16px}
+.vlist .vo span{font-size:13px;color:var(--sub)}
+.vlist .btn.sm{background:var(--fill)}
+.vtheme{display:inline-block;font-size:11px;font-weight:700;padding:0 7px;border-radius:999px;background:var(--fill);margin-left:6px;vertical-align:2px}
+.grow{display:flex;gap:8px;align-items:center}
+.swv{position:fixed;inset:0;z-index:27;background:#0B0F0C;color:#fff;display:flex;flex-direction:column;padding:calc(8px + var(--st)) 0 calc(8px + var(--sb))}
 .swtop{display:flex;justify-content:space-between;align-items:center;padding:0 12px 8px;gap:8px}
-.swtop span{font-size:13px;color:#C9CCC2;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.swtop span{font-size:13px;color:#C6D0C9;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .stage{flex:1;min-height:0;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center}
 .pane{position:relative;flex:1;min-height:0;width:100%;display:flex;align-items:center;justify-content:center}
 .pane video{max-width:100%;max-height:100%;display:block}
 .pane canvas{position:absolute;touch-action:none}
 .pane .tagv{position:absolute;left:10px;top:6px;font-size:11px;font-weight:700;background:rgba(0,0,0,.55);padding:2px 8px;border-radius:999px}
-.swctl{padding:8px 12px 0;display:flex;flex-direction:column;gap:8px;background:#0E0F0D}
-.swctl input[type=range]{width:100%;accent-color:#F5C400}
+.swctl{padding:8px 12px 0;display:flex;flex-direction:column;gap:8px;background:#0B0F0C}
+.swctl input[type=range]{width:100%;accent-color:#FFC700}
 .swrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.swb{appearance:none;border:1px solid #3A3E35;background:#1B1D19;color:#fff;border-radius:9px;padding:8px 10px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
-.swb[aria-pressed="true"]{background:#F5C400;color:#1E1F1B;border-color:#F5C400}
+.swb{appearance:none;border:0;background:#1C2620;color:#fff;border-radius:11px;padding:9px 11px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer}
+.swb[aria-pressed="true"]{background:#FFC700;color:#0F1A14}
 .swb:disabled{opacity:.4}
-.swres{background:#1B1D19;border-radius:12px;padding:10px 12px;font-size:13px;display:flex;flex-direction:column;gap:4px;max-height:28vh;overflow:auto}
-.swres b{font-family:var(--f-num);font-size:18px;color:#F5C400}
-.swres .adv{color:#E8EAE2}
-.ptable{overflow-x:auto;background:var(--paper);border:1px solid var(--rule);border-radius:10px}
+.swres{background:#1C2620;border-radius:14px;padding:10px 12px;font-size:13.5px;display:flex;flex-direction:column;gap:4px;max-height:28vh;overflow:auto}
+.swres b{font-family:var(--f-num);font-size:18px;color:#FFC700}
+.swres .adv{color:#E4ECE6}
+.pill{appearance:none;border:0;border-radius:999px;padding:10px 16px;font-weight:700;background:var(--plate);color:var(--ink);cursor:pointer;min-height:40px}
+
+/* companions */
+.ptable{overflow-x:auto;background:var(--plate);border-radius:14px}
 .ptable table{border-collapse:collapse;font-variant-numeric:tabular-nums;min-width:100%}
-.ptable th,.ptable td{border-right:1px solid var(--rule);padding:6px 5px;text-align:center;font-size:13px;min-width:24px}
-.ptable th{font-size:10px;color:var(--muted)}
-.ptable td.nm{text-align:left;font-weight:700;white-space:nowrap;position:sticky;left:0;background:var(--paper)}
+.ptable th,.ptable td{border-right:1px solid var(--line);padding:7px 5px;text-align:center;font-size:13px;min-width:24px}
+.ptable th{font-size:10px;color:var(--sub)}
+.ptable td.nm{text-align:left;font-weight:700;white-space:nowrap;position:sticky;left:0;background:var(--plate);padding-left:12px}
 .ptable td.tot{font-family:var(--f-num);font-weight:900;font-size:16px}
 .pchips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.pchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rule);border-radius:999px;padding:4px 6px 4px 12px;background:var(--paper);font-size:13px;font-weight:700}
-.pchip button{appearance:none;border:0;background:var(--ground);border-radius:999px;width:24px;height:24px;cursor:pointer;color:var(--graphite)}
+.pchip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 6px 4px 12px;background:var(--plate);font-size:14px;font-weight:700}
+.pchip button{appearance:none;border:0;background:var(--fill);border-radius:999px;width:26px;height:26px;cursor:pointer;color:var(--ink)}
 .others{display:flex;flex-direction:column;gap:6px}
-.orow{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--rule);border-radius:10px;padding:6px 8px;font-size:13px;font-weight:700}
-.orow .step button{width:34px;height:34px;font-size:18px}
+.orow{display:flex;justify-content:space-between;align-items:center;background:var(--bg);border-radius:12px;padding:6px 8px 6px 12px;font-size:14px;font-weight:700}
+.orow .step button{width:36px;height:36px;font-size:18px;background:var(--plate)}
 .orow .step output{font-size:22px}
+
 /* GPS distance */
-.geo{position:fixed;inset:0;z-index:28;background:var(--ground)}
-#map{position:absolute;inset:0;background:#2b2f28}
-.geo-top{position:absolute;left:16px;right:16px;top:calc(10px + env(safe-area-inset-top,0px));display:flex;justify-content:space-between;align-items:center;z-index:500}
-.pill{appearance:none;border:0;border-radius:999px;padding:9px 16px;font-weight:700;background:var(--paper);color:var(--graphite);cursor:pointer}
+.geo{position:fixed;inset:0;z-index:28;background:var(--bg)}
+#map{position:absolute;inset:0;background:#23291F}
+.geo-top{position:absolute;left:16px;right:16px;top:calc(10px + var(--st));display:flex;justify-content:space-between;align-items:center;z-index:500}
 .holepill{background:var(--flag);color:var(--on-flag);border-radius:999px;padding:4px 14px;font-weight:700}
 .holepill b{font-family:var(--f-num);font-weight:900;font-size:20px}
-.geo-panel{position:absolute;left:0;right:0;bottom:0;z-index:500;background:var(--paper);border-radius:22px 22px 0 0;padding:16px 16px calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;max-height:60%;overflow:auto}
+.geo-panel{position:absolute;left:0;right:0;bottom:0;z-index:500;background:var(--plate);border-radius:24px 24px 0 0;padding:16px 16px calc(14px + var(--sb));display:flex;flex-direction:column;gap:10px;max-height:60%;overflow:auto}
+.geo-panel .btn:not(.ink){background:var(--fill)}
 .readout{display:flex;align-items:flex-end;gap:10px;min-height:60px}
 .readout b{font-family:var(--f-num);font-weight:900;font-size:72px;line-height:.9}
 .readout .u{font-size:20px;font-weight:700}
-.gsmall{font-size:12px;color:var(--muted)}
-.grow{display:flex;gap:8px;align-items:center}
 .clubs{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .flagicon{width:22px;height:30px;position:relative}
 .flagicon i{position:absolute;left:0;top:0;width:3px;height:30px;background:#fff}
-.flagicon b{position:absolute;left:3px;top:0;width:17px;height:12px;background:#F5C400}
-.clubrow{display:flex;align-items:baseline;gap:8px;padding:8px 12px}
-.clubrow + .clubrow{border-top:1px solid var(--rule)}
-.clubrow .cl{width:34px;font-weight:700}
-.clubrow .av{font-family:var(--f-num);font-weight:900;font-size:24px}
-.setrow{display:flex;align-items:center;gap:12px;padding:12px;background:var(--paper);border:1.5px solid var(--graphite)}
-.setrow input{width:22px;height:22px;accent-color:var(--graphite)}
-.shotlist{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px}
-.shotlist div{display:flex;gap:10px;align-items:baseline}
-.shotlist b{font-family:var(--f-num);font-size:18px;margin-left:auto}
-/* goal pace, where strokes went, round recap */
-.runsum .pc{display:block;font-size:12px;font-weight:700;color:var(--graphite)}
-.runsum .pc.warn{color:var(--amber)}
-.pace{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:2px 8px;font-size:12px;color:var(--muted);margin-top:-4px}
-.pace .pg{font-weight:700;color:var(--on-flag);background:var(--flag);border-radius:999px;padding:0 8px;line-height:1.6}
-.pace b{font-family:var(--f-num);font-weight:800;font-size:17px;color:var(--graphite);margin:0 2px}
-.goalseg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.goalseg button,.gchip{appearance:none;border:1px solid var(--rule);background:var(--ground);border-radius:8px;padding:10px 4px;font-weight:700;font-size:14px;cursor:pointer;color:var(--graphite)}
-.goalseg button[aria-pressed="true"],.gchip[aria-pressed="true"]{background:var(--graphite);color:var(--paper);border-color:var(--graphite)}
-.goalrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.goalrow .gchip{padding:6px 10px;font-size:12px}
-.badges{display:flex;flex-wrap:wrap;gap:6px}
-.badge{font-size:13px;font-weight:700;padding:3px 12px;border-radius:999px;background:var(--ground);color:var(--graphite);border:1px solid var(--rule)}
-.badge.flag{background:var(--flag);color:var(--on-flag);border-color:var(--flag)}
-.badge.miss{background:var(--amber-soft);color:var(--amber);border-color:var(--amber-soft)}
-h3.sub{margin:0;font-size:14px}
-.loss{display:flex;flex-direction:column;gap:8px}
-.lossbar{display:flex;gap:2px;height:14px;border-radius:7px;overflow:hidden;background:var(--ground)}
-.lossbar i{display:block}
-.lossrow{display:grid;grid-template-columns:12px 1fr auto;gap:8px;align-items:center;font-size:14px;font-weight:700}
-.lossrow .sw{width:12px;height:12px;border-radius:3px}
-.lossrow small{display:block;font-size:11px;font-weight:400;color:var(--muted);line-height:1.35}
-.lossrow b{font-family:var(--f-num);font-weight:800;font-size:24px}
-.ifs{display:flex;flex-direction:column;gap:6px;font-size:13px}
-.ifs div{display:flex;justify-content:space-between;gap:8px;align-items:center}
-.ifs b{font-family:var(--f-num);font-weight:800;font-size:20px;white-space:nowrap}
-.ifs .hit{display:inline-block;color:var(--on-flag);background:var(--flag);border-radius:999px;padding:0 8px;font-size:11px;font-weight:700;margin-left:4px}
-.bw{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.bw div{background:var(--ground);border-radius:10px;padding:8px 10px;font-size:12px;color:var(--muted)}
-.bw b{display:block;font-size:15px;color:var(--graphite)}
-.sc.withgoal .sc-labels,.sc.withgoal .sc-col{grid-template-rows:26px 26px 22px 42px 30px 26px}
-.sc-col > span.g{font-size:14px;font-weight:600;color:var(--muted)}
-.sc-col > span.g.ok{color:var(--graphite);font-weight:800}
-/* distance extras, share image, notices */
-.elev{display:flex;flex-wrap:wrap;gap:2px 14px;align-items:baseline;font-size:13px;color:var(--muted)}
-.elev b{font-family:var(--f-num);font-weight:800;font-size:24px;color:var(--graphite);margin:0 3px}
-.attr{font-size:10px;color:var(--muted)}
+.flagicon b{position:absolute;left:3px;top:0;width:17px;height:12px;background:#FFC700}
+.elev{display:flex;flex-wrap:wrap;gap:2px 14px;align-items:baseline;font-size:14px;color:var(--sub)}
+.elev b{font-family:var(--f-num);font-weight:800;font-size:24px;color:var(--ink);margin:0 3px}
+.attr{font-size:10.5px;color:var(--sub)}
 .attr a{color:inherit}
-.clubrow input{width:68px;font:inherit;font-size:16px;padding:4px 6px;border:1px solid var(--rule);border-radius:6px;background:var(--ground);color:var(--graphite);text-align:right}
-.shv{position:fixed;inset:0;z-index:35;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:calc(12px + env(safe-area-inset-top,0px)) 16px calc(12px + env(safe-area-inset-bottom,0px))}
-.shbox{background:var(--paper);border-radius:18px;padding:14px;max-width:420px;width:100%;max-height:100%;display:flex;flex-direction:column;gap:10px;overflow:auto}
-.shbox img{width:100%;height:auto;border:1px solid var(--rule);border-radius:8px}
-.info{background:var(--paper);border:1px solid var(--rule);border-left:4px solid var(--flag);border-radius:10px;padding:10px 12px;font-size:13px;display:flex;flex-direction:column;gap:6px}
-.info b{font-size:14px}
-.info p{margin:0;color:var(--muted)}
-.eff{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--muted)}
-.eff > b{font-size:14px;color:var(--graphite)}
-.eff .num{font-family:var(--f-num);font-weight:800;font-size:18px;color:var(--graphite)}
-.eff .good{color:var(--graphite);font-weight:700}
-.hist{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;color:var(--muted);text-align:center}
-.hist .memo{color:var(--graphite);font-weight:700;font-size:13px}
+
+/* share image, half-time review, notices */
+.shbox img{width:100%;height:auto;border-radius:12px;background:var(--bg)}
+.info{background:var(--plate);border-radius:14px;padding:13px 14px;font-size:14px;display:flex;flex-direction:column;gap:6px;border-left:4px solid var(--flag)}
+.info b{font-size:15px}
+.info p{margin:0;color:var(--sub)}
+.newslist{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px}
+.newslist li{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start;font-size:14.5px;color:var(--sub)}
+.newslist li b{display:block;color:var(--ink);font-size:15.5px}
+.newslist svg{width:28px;height:28px;fill:none;stroke:var(--ink);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.hist{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;color:var(--sub);text-align:center}
+.hist .memo{color:var(--ink);font-weight:700;font-size:14px}
 .memoform{display:flex;gap:6px;width:100%}
-.memoform input{flex:1;min-width:0;font:inherit;font-size:16px;padding:8px 10px;border:1px solid var(--rule);border-radius:8px;background:var(--paper);color:var(--graphite)}
-.vtheme{display:inline-block;font-size:11px;font-weight:700;padding:0 6px;border-radius:999px;background:var(--ground);border:1px solid var(--rule);margin-left:4px}
-@media (prefers-reduced-motion: reduce){.tick,.m.new{animation:none}.toast{transition:none}.slab:active{transform:none}}
+.memoform input{flex:1;min-width:0;font:inherit;font-size:16px;padding:9px 11px;border:0;border-radius:10px;background:var(--plate);color:var(--ink)}
+.dangerzone{margin-top:6px}
+.dangerzone .row{color:var(--red);justify-content:center}
+.haptic{position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
+
+
+/* shorter phones (iPhone SE, mini) and Safari with its toolbars: the round screen tightens so every button fits */
+@media (max-height:720px){
+  .rm-in{gap:8px;padding-top:calc(4px + var(--st))}
+  .rm .iconbtn{width:40px;height:40px}
+  .rm .mc{height:34px}
+  .rm .mc b{margin-top:7px;font-size:14px}
+  .rm .pin{height:44px}
+  .rm .flag{font-size:26px;padding:4px 17px 5px 7px;min-width:48px}
+  .rm .par{height:30px}
+  .rm .runsum b{font-size:21px}
+  .rm .next .n{font-size:clamp(80px,14vh,124px)}
+  .rm .counter{gap:6px;padding:0}
+  .rm .cnote{font-size:13px}
+  .rm .shot{height:clamp(72px,12.5vh,96px)}
+  .rm .putt{height:clamp(54px,8.6vh,68px)}
+  .rm .slab .p{font-size:42px}
+  .rm .slab .t{font-size:23px}
+  .rm .pen{padding:7px 4px 6px}
+  .rm .foot .btn{min-height:46px;padding:10px}
+  .rm .rm-go{gap:7px;padding-bottom:calc(8px + var(--sb))}
+}
+@media (max-width:360px){.slab .t{font-size:22px}.goalseg button{font-size:12px}.pens .pen{font-size:12.5px}}
+@media (prefers-reduced-motion: reduce){*,*::before{animation:none!important;transition:none!important}}
 </style>
 
 <div class="app">
-  <div class="top">
-    <h1>ゴルフ打数カウンター</h1>
-    <span class="sync" id="sync">読み込み中…</span>
-  </div>
-  <div class="tabs" role="tablist">
-    <button class="tab" role="tab" data-tab="play" aria-selected="true">プレー</button>
-    <button class="tab" role="tab" data-tab="card" aria-selected="false">スコア</button>
-    <button class="tab" role="tab" data-tab="list" aria-selected="false">記録</button>
-    <button class="tab" role="tab" data-tab="stats" aria-selected="false">分析</button>
-    <button class="tab" role="tab" data-tab="swing" aria-selected="false">スイング</button>
-  </div>
   <main id="main"></main>
 </div>
+<button class="minibar" id="minibar" data-act="rmopen" hidden></button>
+<nav class="tabbar" role="tablist" aria-label="画面の切り替え">
+  <button class="tab" role="tab" data-tab="home" aria-selected="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 21V3.2"/><path class="fl" d="M6.5 3.8h11.2l-3 3.9 3 3.9H6.5z"/></svg><span>ラウンド</span></button>
+  <button class="tab" role="tab" data-tab="list" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3.2" width="16" height="17.6" rx="2.6"/><path d="M8 8.3h8M8 12h8M8 15.7h4.5"/></svg><span>記録</span></button>
+  <button class="tab" role="tab" data-tab="stats" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20.5v-8M12 20.5V4.5M19 20.5v-11"/></svg><span>分析</span></button>
+  <button class="tab" role="tab" data-tab="swing" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.8" y="5" width="18.4" height="14" rx="3.2"/><path d="M10.2 9.1v5.8l4.9-2.9z"/></svg><span>スイング</span></button>
+  <button class="tab" role="tab" data-tab="settings" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h9.5M18.5 7.5H20M4 16.5h3.5M12.5 16.5H20"/><circle cx="16" cy="7.5" r="2.4"/><circle cx="10" cy="16.5" r="2.4"/></svg><span>設定</span></button>
+</nav>
+<section class="rm" id="rm" hidden aria-label="ラウンド中"><div class="rm-in" id="rmMain"></div></section>
+<section class="push" id="detail" hidden aria-label="ラウンドの記録"></section>
 <div class="scrim" id="sheet" hidden></div>
 <div class="xfer" id="xfer" hidden></div>
 <div class="swv" id="swv" hidden></div>
 <div class="geo" id="geo" hidden><div id="map"></div><div class="geo-top"><button class="pill" data-act="closegeo">閉じる</button><span class="holepill" id="geoHole"></span></div><div class="geo-panel" id="geoPanel"></div></div>
-<div class="shv" id="shv" hidden></div>
-<div class="shv" id="half" hidden></div>
+<div class="scrim" id="shv" hidden></div>
+<div class="scrim" id="half" hidden></div>
 <div class="scrim" id="ask" hidden></div>
+<div class="scrim" id="info" hidden></div>
 <div class="toast" id="toast" role="status"></div>
+<span id="sync" hidden></span>
+<label class="haptic" id="hapticL" aria-hidden="true"><input type="checkbox" switch tabindex="-1"></label>
 
 <script>
 (function(){
@@ -440,7 +579,8 @@ h3.sub{margin:0;font-size:14px}
   const KEY = "golf-counter-v1";
 
   let rounds = {}, curId = null, pending = [];
-  let tab = "play", sheet = null, undo = [], showNew = false, confirmDel = null, transfer = false, fresh = false, halfOpen = false, ask = null, countForce = false, memoEdit = false;
+  let tab = "home", sheet = null, undo = [], showNew = false, confirmDel = null, transfer = false, fresh = false, halfOpen = false, ask = null, countForce = false, memoEdit = false;
+  let roundMode = false, detailOpen = false, detailFrom = "list", info = null;
   let nfStart = 1, nfGoal, nfDraft = { date: todayKey(), course: "" };
   let db = null, wakeOn = false, wl = null;
 
@@ -545,16 +685,17 @@ h3.sub{margin:0;font-size:14px}
     const holes = Array.from({ length: 18 }, (_, i) => ({ par: prev ? prev.holes[i].par : 4, on:0, putts:0, ob:0, pen:0, done:false, log:[] }));
     const now = Date.now();
     rounds[id] = { id, date, course, start, pos:0, holes, finished:false, transferred:false, tpos:0, goal: goal || 0, createdAt:now, updatedAt:now };
-    curId = id; undo = []; tab = "play"; showNew = false; nfDraft = { date: todayKey(), course: "" };
+    curId = id; undo = []; tab = "home"; showNew = false; roundMode = true; detailOpen = false; nfDraft = { date: todayKey(), course: "" };
     extra.goal = goal || 0; saveExtra();
     try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); }catch(e){}
-    touch(rounds[id]); render();
+    touch(rounds[id]); render(); $("rm").scrollTop = 0; if(wakeOn) reqWake();
     toast(prev ? "パーは前回の" + course + "から引き継ぎました" : "ラウンド開始。パーはホールごとに選べます");
   }
   function count(kind){
     const r = cur(); if(!r || r.finished) return;
     const hi = holeIdx(r), h = r.holes[hi];
     if(kind === "shot" && !countForce && h.putts > 0){ const tr = trailOf(h); if(tr[tr.length - 1] === "P"){ ask = { hi }; renderAsk(); return; } }
+    haptic();
     undo.push({ rid: r.id, hi, h: snapHole(h) });
     if(undo.length > 60) undo.shift();
     if(!Array.isArray(h.log) || h.log.length !== strokes(h)) h.log = trailOf(h).slice();
@@ -571,7 +712,7 @@ h3.sub{margin:0;font-size:14px}
   function doUndo(){
     const r = cur(), u = undo.pop();
     if(!r || !u || u.rid !== r.id){ toast("取り消せる操作がありません"); return; }
-    Object.assign(r.holes[u.hi], u.h); touch(r); render(); toast("1つ戻しました");
+    haptic(); Object.assign(r.holes[u.hi], u.h); touch(r); render(); toast("1つ戻しました");
   }
   function go(i){
     const r = cur(); if(!r) return; memoEdit = false;
@@ -596,7 +737,9 @@ h3.sub{margin:0;font-size:14px}
     if(changed) h.log = null;
     const sc = s.on + s.putts;
     if(s.mode === "out") advance(r, true);
-    sheet = null; touch(r); render();
+    haptic();
+    sheet = null; touch(r);
+    if(r.finished && s.mode === "out"){ roundMode = false; tab = "home"; openDetail(r.id, "home"); } else render();
     toast((s.hi + 1) + "番 " + sc + "打（" + scoreName(sc, h.par) + "）" + (r.finished && s.mode === "out" ? "　ラウンド終了です" : ""));
   }
   // next hole in playing order; the half-time review opens once when the first nine are done
@@ -609,7 +752,7 @@ h3.sub{margin:0;font-size:14px}
     const r = cur(); if(!r || !ask) return;
     const h = r.holes[ask.hi], sc = strokes(h), last = r.pos >= 17;
     h.done = true; ask = null; advance(r, false); touch(r);
-    if(last){ render(); toast(`${r.holes.indexOf(h) + 1}番 ${sc}打（${scoreName(sc, h.par)}）でラウンド終了です`); return; }
+    if(last){ roundMode = false; tab = "home"; openDetail(r.id, "home"); toast(`${r.holes.indexOf(h) + 1}番 ${sc}打（${scoreName(sc, h.par)}）でラウンド終了です`); return; }
     count("shot");
     toast(`前のホールを${sc}打（${scoreName(sc, h.par)}）でホールアウト。${holeIdx(r) + 1}番の1打目を数えました`);
   }
@@ -618,7 +761,7 @@ h3.sub{margin:0;font-size:14px}
     if(!ask || !r || r.finished){ el.hidden = true; el.innerHTML = ""; return; }
     const h = r.holes[ask.hi], sc = strokes(h), last = r.pos >= 17, nx = last ? -1 : orderOf(r.start)[r.pos + 1];
     el.hidden = false;
-    el.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="askT">
+    el.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="askT"><div class="grab"></div>
       <div class="sh-top">${pin(ask.hi, true)}<h3 id="askT">ホールアウトを忘れていませんか？</h3></div>
       <p class="xnote">${ask.hi + 1}番は、パットのあとに「ショット」が押されました。</p>
       <button class="btn ink full" data-act="asknext">${last ? `${ask.hi + 1}番を${sc}打でホールアウトして、ラウンド終了` : `${ask.hi + 1}番を${sc}打でホールアウトして、${nx + 1}番の1打目を数える`}</button>
@@ -638,8 +781,14 @@ h3.sub{margin:0;font-size:14px}
   const pin = (hi, sm) => `<div class="pin${sm ? " sm" : ""}" role="img" aria-label="${hi + 1}番ホール"><span class="pole"></span><span class="flag">${hi + 1}</span></div>`;
   function render(){
     document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", String(t.dataset.tab === tab)));
-    if(tab === "play") renderPlay(); else if(tab === "card") renderCard(); else if(tab === "stats") renderStats(); else if(tab === "swing") renderSwing(); else renderList();
-    renderSheet(); renderTransfer(); renderHalf(); renderAsk();
+    // the tab underneath is redrawn only while it can be seen, so counting stays quick
+    if(!(roundMode || detailOpen) || !$("main").childElementCount || render.tab !== tab){
+      render.tab = tab;
+      if(tab === "home") renderHome(); else if(tab === "stats") renderStats(); else if(tab === "swing") renderSwing(); else if(tab === "settings") renderSettings(); else renderList();
+    }
+    document.body.classList.toggle("live", !!liveOf());
+    renderRoundMode(); renderMini(); renderDetail(); lockScroll();
+    renderSheet(); renderTransfer(); renderHalf(); renderAsk(); renderInfo();
   }
   function miniCard(r){
     const curHi = r.finished ? -1 : holeIdx(r), ord = orderOf(r.start);
@@ -663,141 +812,21 @@ h3.sub{margin:0;font-size:14px}
   }
   function newForm(){
     if(nfGoal === undefined) nfGoal = extra.goal != null ? extra.goal : suggestGoal();
-    const courses = [...new Set(Object.values(rounds).map(r => r.course).filter(Boolean))];
+    const courses = [...new Set(Object.values(rounds).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).map(r => r.course).filter(Boolean))];
     return `<form class="form" id="nf">
-      <label for="nfDate">日付<input type="date" id="nfDate" value="${esc(nfDraft.date)}" required></label>
-      <label for="nfCourse">コース名（なくても始められます）<input type="text" id="nfCourse" list="courses" value="${esc(nfDraft.course)}" placeholder="前回と同じ名前なら、パーを引き継ぎます" autocomplete="off"></label>
+      <label for="nfCourse">コース<input type="text" id="nfCourse" list="courses" value="${esc(nfDraft.course)}" placeholder="コース名（なくても始められます）" autocomplete="off" enterkeyhint="done"></label>
+      ${courses.length ? `<div class="chiprow" role="group" aria-label="前に回ったコース">${courses.slice(0, 6).map(c => `<button type="button" class="gchip" data-course="${esc(c)}" aria-pressed="${nfDraft.course === c}">${esc(c)}</button>`).join("")}</div>` : ""}
       <datalist id="courses">${courses.map(c => `<option value="${esc(c)}"></option>`).join("")}</datalist>
       <div class="flabel">スタート<div class="seg">
         <button type="button" data-start="1" aria-pressed="${nfStart === 1}">OUT（1番から）</button>
         <button type="button" data-start="10" aria-pressed="${nfStart === 10}">IN（10番から）</button>
       </div></div>
-      <div class="flabel">目標スコア（ホールごとの目標打数と、ペースを出します）<div class="goalseg">
-        ${[0, ...GOALS].map(g => `<button type="button" data-goal="${g ? g - 1 : 0}" aria-pressed="${nfGoal === (g ? g - 1 : 0)}">${g ? g + "切り" : "なし"}</button>`).join("")}
+      <div class="flabel">目標（〇〇切り）<div class="goalseg">
+        ${[0, ...GOALS].map(g => `<button type="button" data-goal="${g ? g - 1 : 0}" aria-pressed="${nfGoal === (g ? g - 1 : 0)}" aria-label="${g ? g + "切り" : "目標なし"}">${g || "なし"}</button>`).join("")}
       </div></div>
-      <button class="btn ink full" type="submit">ラウンドを始める</button>
+      <label for="nfDate">日付<input type="date" id="nfDate" value="${esc(nfDraft.date)}" required></label>
+      <button class="btn ink big full" type="submit">ラウンドを始める</button>
     </form>`;
-  }
-  function renderPlay(){
-    const m = $("main"), r = cur();
-    if(!r){
-      m.innerHTML = `${installHtml(true)}<section class="panel">
-          <h2 class="lead">打つたびに、1回タップ</h2>
-          <ol class="steps">
-            <li><span><b>ショット</b>と<b>パット</b>をタップして数えます。OBや池は専用のボタンで罰打まで足します</span></li>
-            <li><span>カップインしたら<b>ホールアウト</b>。数え忘れたホールは「何オン何パット」で入れられます</span></li>
-            <li><span>ラウンドのあと、<b>転記モード</b>で楽天ゴルフスコアに1ホールずつ写します</span></li>
-          </ol>
-        </section>${banner()}<section class="panel">${newForm()}</section>`;
-      return;
-    }
-    if(r.finished){ m.innerHTML = newsHtml() + recapHtml(r); return; }
-    const hi = holeIdx(r), h = r.holes[hi], st = strokes(h), trail = trailOf(h);
-    const t = totals(r, 0, 18, (x, i) => played(x) && i !== hi);
-    const pc = paceOf(r), tgt = pc ? pc.mp[hi] : null;
-    let note = st === 0 ? "ティーショットを打ったら「ショット」をタップ" : h.putts > 0 ? `${h.on}オン ${h.putts}パット` : `ここまで ${st}打`, warn = false;
-    if(tgt != null){
-      if(st === 0) note = `このホールの目標は${tgt}打（${scoreName(tgt, h.par)}）`;
-      else if(st < tgt) note += `・あと${tgt - st}打以内で入れば目標`;
-      else note += st === tgt ? `・目標の${tgt}打に到達` : `・目標の${tgt}打をオーバー`;
-    }
-    if(st >= h.par * 2){ note = "ダブルパーです。ここで打ち切りのコースもあります"; warn = true; }
-    if(h.on === 0 && h.putts > 0){ note = "ショットが0のままです。ホールアウトの画面で「オン」を直せます"; warn = true; }
-    const halfLink = r.pos >= 9 ? `<button class="linkish" style="padding:0 2px;font-size:12px" data-act="half">前半の振り返り</button>` : "";
-    const paceLine = !pc ? (halfLink ? `<div class="pace">${halfLink}</div>` : "") : `<div class="pace"><span class="pg">${goalLabel(r.goal)}</span>${pc.budget < pc.parLeft
-        ? `<span>残りを全部パーでも届かない位置です</span>`
-        : `<span>残り${pc.left}Hを<b>${pc.budget}</b>打以内</span>`}${pc.pred != null && pc.left ? `<span>このままなら<b>${pc.pred}</b></span>` : ""}${halfLink}</div>`;
-    m.innerHTML = `
-      ${miniCard(r)}
-      <div class="holehead">
-        ${pin(hi)}
-        <div class="pars" role="group" aria-label="パー">PAR ${[3,4,5].map(p => `<button class="par" data-par="${p}" aria-pressed="${h.par === p}">${p}</button>`).join("")}</div>
-        <div class="runsum">${t.n ? `ここまで<b>${t.s}<span class="d${t.diff < 0 ? " under" : ""}">${diffStr(t.diff)}</span></b>` : `このホールから<b>スタート</b>`}${pc && pc.n ? `<span class="pc${pc.pace > 0 ? " warn" : ""}">${pc.pace < 0 ? "目標より貯金" + (-pc.pace) : pc.pace > 0 ? "目標より借金" + pc.pace : "目標どおり"}</span>` : ""}</div>
-      </div>
-      ${paceLine}
-      <div class="counter" aria-live="polite">
-        <div class="next"><span class="lbl">次は</span><span class="n${fresh ? " tick" : ""}" id="bn">${st + 1}</span><span class="u">打目</span></div>
-        <div class="trail" role="img" aria-label="${trailLabel(trail)}">${trail.map((c, i) => `<i class="m ${c.toLowerCase()}${fresh && i === trail.length - 1 ? " new" : ""}"></i>`).join("")}</div>
-        <div class="cnote${warn ? " warn" : ""}">${note}</div>
-        ${st === 0 ? holeHistHtml(r, hi) : ""}
-      </div>
-      <button class="slab shot" data-act="shot"><span class="t">ショット</span><span class="p">＋1</span></button>
-      <button class="slab putt" data-act="putt"><span class="t">パット</span><span class="p">＋1</span></button>
-      <div class="pens">
-        <button class="pen" data-act="obRe"><span class="lab"><i class="m o"></i>OB 打ち直し</span><small>罰打 +1</small></button>
-        <button class="pen" data-act="obFw" ${h.on === 1 && h.putts === 0 ? "" : "disabled"} title="ティーショットがOBのときに使えます"><span class="lab"><i class="m o"></i>OB 前進4打</span><small>次が4打目に</small></button>
-        <button class="pen" data-act="haz"><span class="lab"><i class="m h"></i>池・アンプレ</span><small>罰打 +1</small></button>
-      </div>
-      <div class="foot">
-        <button class="btn" data-act="undo" ${undo.length ? "" : "disabled"}>取り消し</button>
-        ${extra.competition ? `<button class="btn" disabled title="競技モード中">距離</button>` : `<button class="btn" data-act="geo">距離</button>`}
-        <button class="btn ink" data-act="holeout">ホールアウト</button>
-      </div>
-      <label class="wake"><input type="checkbox" id="wake" ${wakeOn ? "checked" : ""}>画面を消さない（カートに置くとき用）</label>`;
-  }
-  function renderCard(){
-    const m = $("main"), r = cur();
-    if(!r){ m.innerHTML = `<div class="emptybox">ラウンドを始めると、ここにスコアカードができます。</div><button class="btn ink full" data-act="newform">ラウンドを始める</button>`; return; }
-    const t = totals(r), curHi = r.finished ? -1 : holeIdx(r), mp = myPars(r);
-    const block = (label, a, b) => {
-      const tt = totals(r, a, b);
-      let cols = "";
-      for(let i = a; i < b; i++){
-        const h = r.holes[i], pl = played(h), sc = strokes(h), inProg = i === curHi && !h.done;
-        const score = !pl ? "" : inProg ? `<b class="inprog">${sc}</b>` : `<b class="mk ${markClass(sc, h.par)}">${sc}</b>`;
-        cols += `<button class="sc-col${i === curHi ? " cur" : ""}" data-edit="${i}" aria-label="${i + 1}番 PAR${h.par}${mp ? " 目標" + mp[i] : ""} ${pl ? sc + "打 " + h.putts + "パット" : "未入力"}。タップで入力・修正">
-          <span class="h">${i + 1}</span><span class="p">${h.par}</span>${mp ? `<span class="g${pl && !inProg && sc <= mp[i] ? " ok" : ""}">${mp[i]}</span>` : ""}<span class="s">${score}</span>
-          <span class="pt">${pl ? h.putts : ""}</span><span class="pn">${pl && (h.ob + h.pen) ? h.ob + h.pen : ""}</span></button>`;
-      }
-      return `<div class="sc${mp ? " withgoal" : ""}">
-        <div class="sc-labels"><span>H</span><span>PAR</span>${mp ? "<span>目標</span>" : ""}<span>スコア</span><span>パット</span><span>罰打</span></div>
-        ${cols}
-        <div class="sc-col sum"><span class="h">${label}</span><span class="p">${parSum(r, a, b)}</span>${mp ? `<span class="g">${mp.slice(a, b).reduce((x, y) => x + y, 0)}</span>` : ""}<span class="s"><b>${tt.n ? tt.s : ""}</b></span><span class="pt">${tt.n ? tt.pt : ""}</span><span class="pn">${tt.n && (tt.ob + tt.pen) ? tt.ob + tt.pen : ""}</span></div>
-      </div>`;
-    };
-    m.innerHTML = `
-      <div class="cardhead">
-        <div><div class="course">${esc(r.course || "コース名なし")}</div><div class="meta">${fmtDate(r.date)} ${r.start === 10 ? "INスタート" : "OUTスタート"}</div></div>
-        <div class="bigtotal sm"><b>${t.n ? t.s : "—"}</b><span class="${t.diff < 0 ? "under" : ""}">${t.n ? diffStr(t.diff) : ""}</span></div>
-      </div>
-      ${block("OUT", 0, 9)}${block("IN", 9, 18)}
-      <div class="stats"><span>パット<b>${t.pt}</b></span><span>OB<b>${t.ob}</b></span><span>池など<b>${t.pen}</b></span><span>入力済み<b>${t.n}</b>/18</span></div>
-      <div class="legend"><span class="ex"><b class="mk c1 under">3</b>バーディー</span><span class="ex"><b class="mk s1">5</b>ボギー</span><span class="ex"><b class="mk s2">6</b>ダブルボギー以上</span></div>
-      <p class="note">マスをタップすると、そのホールを入力・修正できます。</p>
-      <section><h2 class="sec">目標スコア</h2><div class="goalrow">${[0, ...GOALS].map(g => `<button class="gchip" data-rgoal="${g ? g - 1 : 0}" aria-pressed="${(r.goal || 0) === (g ? g - 1 : 0)}">${g ? g + "切り" : "なし"}</button>`).join("")}</div>
-        <p class="note" style="margin-top:6px">${mp ? "「目標」の行は、目標スコアを18ホールに割り振った打数です。難しいホールほど多めで、目標以内で上がったホールは濃く表示します。" : "目標を選ぶと、ホールごとの目標打数とペースが出ます。"}</p></section>
-      ${t.n ? `<button class="btn full" data-act="shareimg">スコアカードを画像で共有</button>` : ""}
-      ${playersHtml(r)}
-      ${(r.shots||[]).length ? `<div class="shotlist"><strong>このラウンドで測った飛距離</strong>${r.shots.map(x => `<div><span class="gsmall">${x.hole + 1}番</span><span>${esc(x.club || "クラブなし")}</span><b>${x.yards}ヤード</b></div>`).join("")}</div>` : ""}
-      ${r.transferred ? `<div class="stats"><span class="st">楽天に転記済み</span><button class="linkish" data-act="untransfer">未転記に戻す</button></div>`
-        : `<button class="btn ink full" data-act="xfer">楽天ゴルフスコアへ転記する</button>`}`;
-  }
-  function renderList(){
-    const m = $("main");
-    const list = Object.values(rounds).sort((a,b) => b.date.localeCompare(a.date) || (b.createdAt||0) - (a.createdAt||0));
-    const li = r => {
-      const t = totals(r);
-      const status = !r.finished ? `<span class="st play">プレー中</span>` : r.transferred ? `<span class="st">転記済み</span>` : `<span class="st warn">未転記</span>`;
-      const del = confirmDel === r.id
-        ? `<span class="cdel">削除する？<button class="btn sm danger" data-del="${r.id}">削除</button><button class="btn sm" data-act="canceldel">やめる</button></span>`
-        : `<button class="btn sm" data-askdel="${r.id}" aria-label="${fmtDate(r.date)}のラウンドを削除">削除</button>`;
-      return `<li><button class="ropen" data-open="${r.id}"><span class="c">${esc(r.course || "コース名なし")}</span><span class="n">${t.n ? t.s : "—"}</span><span class="dt">${fmtDate(r.date)} ${t.n}ホール ${status}</span></button>${del}</li>`;
-    };
-    m.innerHTML = `${newsHtml()}${banner()}${backupNudge()}
-      ${showNew ? `<section class="panel">${newForm()}</section>` : `<button class="btn ink full" data-act="newform">新しいラウンドを始める</button>`}
-      <section><h2 class="sec">これまでのラウンド</h2>
-      ${list.length ? `<ul class="rlist">${list.map(li).join("")}</ul>` : `<div class="emptybox">まだ記録がありません。最初のラウンドを始めると、ここに並びます。</div>`}
-      </section>
-      <section><h2 class="sec">データ</h2>${installHtml(false)}<div class="rowbtns" style="margin-top:8px">
-        <button class="btn" data-act="csv">CSVで書き出す</button>
-        <button class="btn" data-act="backup">バックアップを保存</button>
-        <label class="btn" style="cursor:pointer">バックアップから戻す<input type="file" id="restoreFile" accept="application/json,.json" hidden></label>
-        <button class="btn" data-act="copyall">記録をコピー</button>
-        <button class="btn" data-act="pasteall">コピーした記録を戻す</button>
-      </div><p class="note" style="margin-top:6px">機種変更のときは、バックアップを保存して新しいiPhoneで戻します。Safariからホーム画面のアプリへ移すときは「記録をコピー」→ アプリで「コピーした記録を戻す」。スイング動画はどちらにも含まれません。${extra.lastBackup ? `最後のバックアップ：${fmtDate(todayKeyOf(extra.lastBackup))}` : ""}</p></section>
-      <section><h2 class="sec">設定</h2>
-        <label class="setrow"><span style="flex:1"><b>競技モード</b><br><span class="gsmall">距離の表示をすべて隠します。距離計が禁止の大会で使います</span></span><input type="checkbox" id="comp" ${extra.competition ? "checked" : ""}></label>
-      </section>`;
   }
   function renderSheet(){
     const el = $("sheet"), r = cur();
@@ -809,9 +838,9 @@ h3.sub{margin:0;font-size:14px}
     const chips = (k, a, b) => { let o = ""; for(let v = a; v <= b; v++) o += `<button class="chip" data-set="${k}" data-v="${v}" aria-pressed="${s[k] === v}">${v}</button>`; return o; };
     const stepper = k => `<div class="step"><button data-st="${k}" data-d="-1" aria-label="1つ減らす">−</button><output>${s[k] == null ? "–" : s[k]}</output><button data-st="${k}" data-d="1" aria-label="1つ増やす">＋</button></div>`;
     el.hidden = false;
-    el.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="shT">
+    el.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="shT"><div class="grab"></div>
       <div class="sh-top">${pin(s.hi, true)}<h3 id="shT">${s.mode === "out" ? "ホールアウト" : "入力・修正"}</h3>
-        <div class="pars">PAR ${[3,4,5].map(p => `<button class="par" data-spar="${p}" aria-pressed="${h.par === p}">${p}</button>`).join("")}</div></div>
+        <div class="pars"><span>PAR</span>${[3,4,5].map(p => `<button class="par" data-spar="${p}" aria-pressed="${h.par === p}">${p}</button>`).join("")}</div></div>
       <div class="pick"><div class="pick-h"><div><b>オン</b><small>グリーンに乗るまでの打数。罰打も含めます</small></div>${stepper("on")}</div><div class="chips">${chips("on", 1, 8)}</div></div>
       <div class="pick"><div class="pick-h"><div><b>パット</b><small>グリーン上で打った数</small></div>${stepper("putts")}</div><div class="chips">${chips("putts", 0, 4)}</div></div>
       <div class="pens2"><div class="pen2"><span class="lab"><i class="m o"></i>OB</span>${stepper("ob")}</div><div class="pen2"><span class="lab"><i class="m h"></i>池など</span>${stepper("pen")}</div></div>
@@ -848,6 +877,306 @@ h3.sub{margin:0;font-size:14px}
       ${i < 17 ? `<button class="linkish" data-act="xdone">途中でも、写し終えたら転記済みにする</button>` : ""}
     </div>`;
   }
+  // ---------- icons ----------
+  const svg = (d, cls) => `<svg viewBox="0 0 24 24" aria-hidden="true"${cls ? ` class="${cls}"` : ""}>${d}</svg>`;
+  const IC = {
+    down: svg('<path d="M6 9.5l6 6 6-6"/>'),
+    up: svg('<path d="M6 14.5l6-6 6 6"/>'),
+    back: svg('<path d="M15 4.5L7.5 12l7.5 7.5"/>'),
+    chev: svg('<path d="M9 5l7 7-7 7"/>', "chev"),
+    sun: svg('<circle cx="12" cy="12" r="4"/><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.5 1.5M17.1 17.1l1.5 1.5M5.4 18.6l1.5-1.5M17.1 6.9l1.5-1.5"/>'),
+    card: svg('<rect x="3.2" y="5" width="17.6" height="14" rx="2.4"/><path d="M3.2 10h17.6M3.2 14.5h17.6M8.6 5v14M14.6 5v14"/>'),
+    share: svg('<path d="M12 3.2v11.6M7.8 7.2L12 3.2l4.2 4"/><path d="M6.5 10.8H5.4v9.6h13.2v-9.6h-1.1"/>'),
+    flag: svg('<path d="M6.5 21V3.2"/><path d="M6.5 3.8h11.2l-3 3.9 3 3.9H6.5z"/>'),
+    list: svg('<rect x="4" y="3.2" width="16" height="17.6" rx="2.6"/><path d="M8 8.3h8M8 12h8M8 15.7h4.5"/>'),
+    video: svg('<rect x="2.8" y="5" width="18.4" height="14" rx="3.2"/><path d="M10.2 9.1v5.8l4.9-2.9z"/>'),
+    hand: svg('<path d="M8 13V6.5a1.6 1.6 0 013.2 0V12M11.2 11V4.8a1.6 1.6 0 013.2 0V11M14.4 11.2V6.4a1.6 1.6 0 013.2 0v7.8c0 3.8-2.6 6.6-6.2 6.6-2.6 0-4-1.3-5.3-3.4L4.6 14a1.5 1.5 0 012.5-1.6L8 13.6"/>')
+  };
+
+  // ---------- a small tap you can feel (iPhone: the system switch; Android: vibration) ----------
+  // Safari 17.4+ draws a real iOS switch (and taps back on iOS 18); elsewhere the CSS switch stands in
+  try{ if("switch" in HTMLInputElement.prototype) document.documentElement.classList.add("native-switch"); }catch(e){}
+  const typingEl = t => t && (t.tagName === "TEXTAREA" || t.tagName === "SELECT" || (t.tagName === "INPUT" && !/^(checkbox|radio|button|submit|file|range)$/.test(t.type)));
+  document.addEventListener("focusin", e => { if(typingEl(e.target)) document.documentElement.classList.add("typing"); });
+  document.addEventListener("focusout", e => { if(typingEl(e.target)) document.documentElement.classList.remove("typing"); });
+  function haptic(){
+    try{ if(navigator.vibrate) navigator.vibrate(9); else { const l = $("hapticL"); if(l) l.click(); } }catch(e){}
+  }
+
+  // ---------- screens: tabs underneath, the round on top of them, a round's record on top of that ----------
+  const liveOf = () => Object.values(rounds).filter(r => !r.finished).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0] || null;
+  function openRound(id){
+    const r = rounds[id]; if(!r || r.finished) return;
+    if(curId !== id) undo = [];
+    curId = id; roundMode = true; detailOpen = false; confirmDel = null; saveLocal(); render();
+    $("rm").scrollTop = 0;
+    if(wakeOn) reqWake();
+  }
+  function closeRound(){ roundMode = false; memoEdit = false; render(); }
+  function openDetail(id, from){
+    if(!rounds[id]) return;
+    curId = id; detailOpen = true; detailFrom = from || "list"; confirmDel = null; saveLocal(); render();
+    $("detail").scrollTop = 0;
+  }
+  function closeDetail(){ detailOpen = false; confirmDel = null; render(); }
+  async function setWake(on){
+    wakeOn = on;
+    if(on) await reqWake(); else { try{ if(wl) await wl.release(); }catch(_){} wl = null; }
+    render();
+    if(wakeOn) toast("画面を消さない：オン（カートに置くとき用）"); else if(!on) toast("画面を消さない：オフ");
+  }
+  function lockScroll(){ document.documentElement.classList.toggle("locked", roundMode || detailOpen || transfer); }
+
+  function renderRoundMode(){
+    const el = $("rm"), r = cur();
+    if(!roundMode || !r || r.finished){
+      roundMode = false;
+      if(!el.hidden){ el.hidden = true; $("rmMain").innerHTML = ""; }
+      return;
+    }
+    el.hidden = false; renderRound(r);
+  }
+  function renderRound(r){
+    const m = $("rmMain");
+    const hi = holeIdx(r), h = r.holes[hi], st = strokes(h), trail = trailOf(h);
+    const t = totals(r, 0, 18, (x, i) => played(x) && i !== hi);
+    const pc = paceOf(r), tgt = pc ? pc.mp[hi] : null;
+    let note = st === 0 ? "ティーショットを打ったら「ショット」" : h.putts > 0 ? `${h.on}オン ${h.putts}パット` : `ここまで ${st}打`, warn = false;
+    if(tgt != null){
+      if(st === 0) note = `このホールの目標は${tgt}打（${scoreName(tgt, h.par)}）`;
+      else if(st < tgt) note += `・あと${tgt - st}打以内で入れば目標`;
+      else note += st === tgt ? `・目標の${tgt}打に到達` : `・目標の${tgt}打をオーバー`;
+    }
+    if(st >= h.par * 2){ note = "ダブルパーです。ここで打ち切りのコースもあります"; warn = true; }
+    if(h.on === 0 && h.putts > 0){ note = "ショットが0のままです。ホールアウトの画面で「オン」を直せます"; warn = true; }
+    const halfLink = r.pos >= 9 ? `<button class="linkish" style="padding:0 2px;font-size:13px" data-act="half">前半の振り返り</button>` : "";
+    const paceLine = !pc ? (halfLink ? `<div class="pace">${halfLink}</div>` : "") : `<div class="pace"><span class="pg">${goalLabel(r.goal)}</span>${pc.budget < pc.parLeft
+        ? `<span>残りを全部パーでも届かない位置です</span>`
+        : `<span>残り${pc.left}Hを<b>${pc.budget}</b>打以内</span>`}${pc.pred != null && pc.left ? `<span>このままなら<b>${pc.pred}</b></span>` : ""}${halfLink}</div>`;
+    m.innerHTML = `
+      <header class="rm-top">
+        <button class="iconbtn" data-act="rmclose" aria-label="閉じる（ラウンドは続きます）">${IC.down}</button>
+        <div class="rm-title"><b>${esc(r.course || "ラウンド中")}</b><span>${fmtDate(r.date)}　${r.start === 10 ? "INスタート" : "OUTスタート"}</span></div>
+        <button class="iconbtn" data-act="wake" aria-pressed="${wakeOn}" aria-label="画面を消さない">${IC.sun}</button>
+        <button class="iconbtn" data-act="rmcard" aria-label="スコアカード">${IC.card}</button>
+      </header>
+      ${miniCard(r)}
+      <div class="holehead">
+        ${pin(hi)}
+        <div class="pars" role="group" aria-label="パー"><span>PAR</span>${[3,4,5].map(p => `<button class="par" data-par="${p}" aria-pressed="${h.par === p}">${p}</button>`).join("")}</div>
+        <div class="runsum">${t.n ? `ここまで<b>${t.s}<span class="d${t.diff < 0 ? " under" : ""}">${diffStr(t.diff)}</span></b>` : `このホールから<b class="jp">スタート</b>`}${pc && pc.n ? `<span class="pc${pc.pace > 0 ? " warn" : ""}">${pc.pace < 0 ? "目標より貯金" + (-pc.pace) : pc.pace > 0 ? "目標より借金" + pc.pace : "目標どおり"}</span>` : ""}</div>
+      </div>
+      ${paceLine}
+      <div class="counter" aria-live="polite">
+        <div class="next"><span class="lbl">次は</span><span class="n${fresh ? " tick" : ""}" id="bn">${st + 1}</span><span class="u">打目</span></div>
+        <div class="trail" role="img" aria-label="${trailLabel(trail)}">${trail.map((c, i) => `<i class="m ${c.toLowerCase()}${fresh && i === trail.length - 1 ? " new" : ""}"></i>`).join("")}</div>
+        <div class="cnote${warn ? " warn" : ""}">${note}</div>
+        ${st === 0 ? holeHistHtml(r, hi) : ""}
+      </div>
+      <div class="rm-go">
+        <button class="slab shot" data-act="shot"><span class="t">ショット</span><span class="p">+1</span></button>
+        <button class="slab putt" data-act="putt"><span class="t">パット</span><span class="p">+1</span></button>
+        <div class="pens">
+          <button class="pen" data-act="obRe"><span class="lab"><i class="m o"></i>OB 打ち直し</span><small>罰打 +1</small></button>
+          <button class="pen" data-act="obFw" ${h.on === 1 && h.putts === 0 ? "" : "disabled"} title="ティーショットがOBのときに使えます"><span class="lab"><i class="m o"></i>OB 前進4打</span><small>次が4打目に</small></button>
+          <button class="pen" data-act="haz"><span class="lab"><i class="m h"></i>池・アンプレ</span><small>罰打 +1</small></button>
+        </div>
+        <div class="foot">
+          <button class="btn" data-act="undo" ${undo.length ? "" : "disabled"}>取り消し</button>
+          ${extra.competition ? `<button class="btn" disabled title="競技モード中">距離</button>` : `<button class="btn" data-act="geo">距離</button>`}
+          <button class="btn ink" data-act="holeout">ホールアウト</button>
+        </div>
+      </div>`;
+  }
+  // the round keeps going while you look at other tabs; this bar brings it back
+  function renderMini(){
+    const el = $("minibar"), r = liveOf();
+    if(!r || roundMode || tab === "home"){ el.hidden = true; return; }
+    const hi = holeIdx(r), h = r.holes[hi], st = strokes(h);
+    const t = totals(r, 0, 18, (x, i) => played(x) && (i !== hi || x.done));
+    el.hidden = false;
+    el.setAttribute("aria-label", `ラウンドに戻る：${r.course || ""} ${hi + 1}番 次は${st + 1}打目`);
+    el.innerHTML = `${pin(hi, true)}<span class="mb-t"><b>${esc(r.course || "ラウンド中")}</b><span>${hi + 1}番 PAR${h.par}　次は${st + 1}打目</span></span>${t.n ? `<span class="mb-n">${t.s}<small>ここまで</small></span>` : ""}${IC.up}`;
+  }
+
+  // ---------- ラウンド tab ----------
+  function nowCard(r){
+    const hi = holeIdx(r), h = r.holes[hi], st = strokes(h), pc = paceOf(r);
+    const t = totals(r, 0, 18, (x, i) => played(x) && (i !== hi || x.done));
+    return `<section class="now" aria-label="ラウンド中">
+      <div class="now-h">${pin(hi, true)}<div class="nt"><b>${esc(r.course || "コース名なし")}</b><span>${hi + 1}番 PAR${h.par}　次は${st + 1}打目</span></div>
+        ${t.n ? `<div class="nn">ここまで<b>${t.s}</b>${diffStr(t.diff)}</div>` : ""}</div>
+      ${pc && pc.n ? `<div class="gsmall">${goalLabel(r.goal)}　${pc.pace < 0 ? "目標より貯金" + (-pc.pace) : pc.pace > 0 ? "目標より借金" + pc.pace : "目標どおり"}${pc.pred != null && pc.left ? `　このままなら${pc.pred}` : ""}</div>` : ""}
+      <button class="btn ink big full" data-act="rmopen">ラウンドに戻る</button>
+    </section>`;
+  }
+  const lastCard = r => { const t = totals(r); return `<button class="lastcard" data-open="${r.id}"><span class="c">${esc(r.course || "コース名なし")}</span><span class="n">${t.n ? t.s : "—"}</span>${IC.chev}<span class="dt">${fmtDate(r.date)}　${t.n}ホール${r.transferred ? "" : ` <span class="st warn">未転記</span>`}</span></button>`; };
+  function renderHome(){
+    const m = $("main"), live = liveOf(), all = Object.values(rounds);
+    const last = all.filter(r => r.finished).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0))[0];
+    const d = new Date();
+    m.innerHTML = `<header class="lt"><h1>ラウンド</h1><p>${d.getMonth() + 1}月${d.getDate()}日（${DOW[d.getDay()]}）</p></header>
+      ${live ? nowCard(live) : ""}
+      ${!live || showNew ? `<section class="panel">${newForm()}</section>` : `<button class="linkish" style="align-self:center" data-act="newform">別のラウンドを始める</button>`}
+      ${!all.length ? `<section class="panel"><h2 class="lead">打つたびに、1回タップ</h2>
+          <ol class="steps">
+            <li><span><b>ショット</b>と<b>パット</b>をタップして数えます。OBや池は専用のボタンで罰打まで足します</span></li>
+            <li><span>カップインしたら<b>ホールアウト</b>。数え忘れたホールは「何オン何パット」で入れられます</span></li>
+            <li><span>ラウンドのあと、<b>転記</b>の画面で楽天ゴルフスコアに1ホールずつ写します</span></li>
+          </ol></section>` : ""}
+      ${last ? `<section><h2 class="sec">前回のラウンド</h2>${lastCard(last)}</section>` : ""}
+      ${installHtml(true)}`;
+  }
+
+  // ---------- 記録 tab ----------
+  function renderList(){
+    const m = $("main");
+    const list = Object.values(rounds).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+    const months = [];
+    list.forEach(r => { const k = r.date.slice(0, 7), g = months[months.length - 1]; if(g && g.k === k) g.rs.push(r); else months.push({ k, rs: [r] }); });
+    const li = r => { const hi = r.finished ? -1 : holeIdx(r), t = totals(r, 0, 18, (h, i) => played(h) && (i !== hi || h.done));
+      const status = !r.finished ? `<span class="st play">プレー中</span>` : r.transferred ? "" : `<span class="st warn">未転記</span>`;
+      return `<li><button class="ropen" data-open="${r.id}"><span class="c">${esc(r.course || "コース名なし")}</span><span class="n">${t.n ? t.s : "—"}</span>${IC.chev}<span class="dt">${fmtDate(r.date)}　${t.n}ホール ${status}</span></button></li>`; };
+    m.innerHTML = `<header class="lt"><h1>記録</h1>${list.length ? `<p>${list.length}ラウンド</p>` : ""}</header>
+      ${banner()}${backupNudge()}
+      ${list.length ? months.map(g => `<section><h2 class="sec">${Number(g.k.slice(0, 4))}年${Number(g.k.slice(5))}月</h2><ul class="group rlist">${g.rs.map(li).join("")}</ul></section>`).join("")
+        : `<div class="emptybox">まだ記録がありません。最初のラウンドを始めると、ここに並びます。</div><button class="btn ink full" data-tab="home">ラウンドを始める</button>`}`;
+  }
+
+  // ---------- one round: score, card, where the strokes went, transfer, share ----------
+  function renderDetail(){
+    const el = $("detail"), r = cur();
+    if(!detailOpen || !r){ detailOpen = false; if(!el.hidden){ el.hidden = true; el.innerHTML = ""; } return; }
+    const keep = el.hidden ? 0 : el.scrollTop;
+    el.hidden = false;
+    el.innerHTML = `<header class="navbar"><button class="backbtn" data-act="detailclose">${IC.back}${detailFrom === "list" ? "記録" : "ラウンド"}</button><span class="nb-title">${esc(r.course || "コース名なし")}</span><button class="iconbtn" data-act="shareimg" aria-label="スコアカードを画像で共有"${totals(r).n ? "" : " disabled"}>${IC.share}</button></header>
+      <div class="push-in">${detailHtml(r)}</div>`;
+    el.scrollTop = keep;
+  }
+  function scorePlate(r){
+    const hi = r.finished ? -1 : holeIdx(r), t = totals(r, 0, 18, (h, i) => played(h) && (i !== hi || h.done)), missing = 18 - t.n, full = !missing;
+    const prev = Object.values(rounds).filter(x => x.id !== r.id && x.holes.every(played)).map(x => totals(x).s);
+    const best = prev.length ? Math.min(...prev) : null, avg = prev.length ? prev.reduce((a, b) => a + b, 0) / prev.length : null;
+    const gap = r.goal && full ? t.s - r.goal : null, badges = [];
+    if(gap != null) badges.push(gap <= 0 ? `<span class="badge flag">${goalLabel(r.goal)} 達成</span>` : `<span class="badge miss">${goalLabel(r.goal)}まで あと${gap}打</span>`);
+    if(full && best != null && t.s < best) badges.push(`<span class="badge flag">自己ベスト更新</span>`);
+    const vs = full && avg != null ? Math.round(t.s - avg) : null;
+    return `<section class="panel">
+        <div class="fhead"><span>${r.finished ? "ラウンド終了" : "ここまで"}</span><span>${t.n}/18ホール</span></div>
+        <div class="bigtotal"><b>${t.n ? t.s : "—"}</b><span class="${t.diff < 0 ? "under" : ""}">${t.n ? diffStr(t.diff) : ""}</span></div>
+        ${badges.length ? `<div class="badges">${badges.join("")}</div>` : ""}
+        <div class="stats"><span>パット<b>${t.pt}</b></span><span>OB<b>${t.ob}</b></span><span>池など<b>${t.pen}</b></span>${vs != null ? `<span>いつもより<b>${vs > 0 ? "+" + vs : vs < 0 ? "−" + -vs : "±0"}</b>打</span>` : ""}</div>
+      </section>`;
+  }
+  function detailHtml(r){
+    const t = totals(r), curHi = r.finished ? -1 : holeIdx(r), mp = myPars(r), missing = 18 - t.n;
+    const block = (label, a, b) => {
+      const tt = totals(r, a, b, (h, i) => played(h) && (i !== curHi || h.done));
+      let cols = "";
+      for(let i = a; i < b; i++){
+        const h = r.holes[i], pl = played(h), sc = strokes(h), inProg = i === curHi && !h.done;
+        const score = !pl ? "" : inProg ? `<b class="inprog">${sc}</b>` : `<b class="mk ${markClass(sc, h.par)}">${sc}</b>`;
+        cols += `<button class="sc-col${i === curHi ? " cur" : ""}" data-edit="${i}" aria-label="${i + 1}番 PAR${h.par}${mp ? " 目標" + mp[i] : ""} ${pl ? sc + "打 " + h.putts + "パット" : "未入力"}。タップで入力・修正">
+          <span class="h">${i + 1}</span><span class="p">${h.par}</span>${mp ? `<span class="g${pl && !inProg && sc <= mp[i] ? " ok" : ""}">${mp[i]}</span>` : ""}<span class="s">${score}</span>
+          <span class="pt">${pl ? h.putts : ""}</span><span class="pn">${pl && (h.ob + h.pen) ? h.ob + h.pen : ""}</span></button>`;
+      }
+      return `<div class="sc${mp ? " withgoal" : ""}">
+        <div class="sc-labels"><span>H</span><span>PAR</span>${mp ? "<span>目標</span>" : ""}<span>スコア</span><span>パット</span><span>罰打</span></div>
+        ${cols}
+        <div class="sc-col sum"><span class="h">${label}</span><span class="p">${parSum(r, a, b)}</span>${mp ? `<span class="g">${mp.slice(a, b).reduce((x, y) => x + y, 0)}</span>` : ""}<span class="s"><b>${tt.n ? tt.s : ""}</b></span><span class="pt">${tt.n ? tt.pt : ""}</span><span class="pn">${tt.n && (tt.ob + tt.pen) ? tt.ob + tt.pen : ""}</span></div>
+      </div>`;
+    };
+    const L = lossSum(r), gap = r.goal && !missing ? t.s - r.goal : null, wf = whatIfHtml(L, gap || 0, false);
+    const mpar = mp || r.holes.map(h => h.par);
+    let bi = -1, wi = -1;
+    r.holes.forEach((h, i) => {
+      if(!played(h) || i === curHi && !h.done) return;
+      if(bi < 0 || strokes(h) - mpar[i] < strokes(r.holes[bi]) - mpar[bi]) bi = i;
+      if(wi < 0 || strokes(h) - h.par > strokes(r.holes[wi]) - r.holes[wi].par) wi = i;
+    });
+    const why = h => h.ob ? `OB ${h.ob}回` : h.putts >= 3 ? `${h.putts}パット` : h.pen ? `池など ${h.pen}回` : `${h.on}オン${h.putts}パット`;
+    const hb = bi >= 0 ? r.holes[bi] : null, hw = wi >= 0 ? r.holes[wi] : null;
+    return `
+      <div class="lt"><h1>${esc(r.course || "コース名なし")}</h1><p>${fmtDate(r.date)}　${r.start === 10 ? "INスタート" : "OUTスタート"}${r.finished ? "" : "　プレー中"}</p></div>
+      ${!r.finished && detailFrom !== "round" ? `<button class="btn ink big full" data-act="rmopen">ラウンドに戻る</button>` : ""}
+      ${scorePlate(r)}
+      ${r.finished ? (r.transferred ? `<div class="stats" style="padding:0 4px"><span class="st">楽天に転記済み</span><button class="linkish" data-act="untransfer">未転記に戻す</button></div>`
+        : `<button class="btn ink full" data-act="xfer">楽天ゴルフスコアへ転記する</button>`) : ""}
+      ${r.finished && t.n ? `<button class="btn full" data-act="shareimg">スコアカードを画像で共有</button>` : ""}
+      <section><h2 class="sec">スコアカード</h2>${block("OUT", 0, 9)}${block("IN", 9, 18)}
+        <div class="legend"><span class="ex"><b class="mk c1 under">3</b>バーディー</span><span class="ex"><b class="mk s1">5</b>ボギー</span><span class="ex"><b class="mk s2">6</b>ダブルボギー以上</span></div>
+        <p class="note">マスをタップすると、そのホールを入力・修正できます。${r.finished && missing ? `<b style="color:var(--amber)">${missing}ホールが未入力です。</b>` : ""}</p></section>
+      ${L.n ? `<section class="panel"><h3 class="sub">パーとの差 ${diffStr(L.P + L.A + L.U)} の内訳</h3>${lossHtml(L, false)}
+        ${wf ? `<h3 class="sub">もしも</h3>${wf}` : ""}
+        ${hb && hw && bi !== wi ? `<div class="bw"><div>ベスト<b>${bi + 1}番 ${strokes(hb)}打（${scoreName(strokes(hb), hb.par)}）</b></div><div>ワースト<b>${wi + 1}番 ${strokes(hw)}打（${why(hw)}）</b></div></div>` : ""}
+      </section>` : ""}
+      <section><h2 class="sec">目標スコア</h2><div class="goalrow">${[0, ...GOALS].map(g => `<button class="gchip" data-rgoal="${g ? g - 1 : 0}" aria-pressed="${(r.goal || 0) === (g ? g - 1 : 0)}">${g ? g + "切り" : "なし"}</button>`).join("")}</div>
+        <p class="note">${mp ? "「目標」の行は、目標スコアを18ホールに割り振った打数です。難しいホールほど多めで、目標以内で上がったホールは濃く表示します。" : "目標を選ぶと、ホールごとの目標打数とペースが出ます。"}</p></section>
+      ${playersHtml(r)}
+      ${(r.shots || []).length ? `<section><h2 class="sec">このラウンドで測った飛距離</h2><div class="shotlist">${r.shots.map(x => `<div><span class="gsmall">${x.hole + 1}番</span><span>${esc(x.club || "クラブなし")}</span><b>${x.yards}ヤード</b></div>`).join("")}</div></section>` : ""}
+      <section class="dangerzone"><div class="group">${confirmDel === r.id
+        ? `<div class="row" style="justify-content:space-between;cursor:default"><span>このラウンドを削除しますか？</span><span class="grow"><button class="btn sm danger" data-del="${r.id}">削除</button><button class="btn sm" data-act="canceldel">やめる</button></span></div>`
+        : `<button class="row" data-askdel="${r.id}">このラウンドを削除</button>`}</div></section>`;
+  }
+
+  // ---------- 設定 tab ----------
+  function renderSettings(){
+    const m = $("main"), inst = installHtml(false);
+    m.innerHTML = `<header class="lt"><h1>設定</h1></header>
+      <section><h2 class="sec">ラウンド中</h2><div class="group">
+        <label class="row"><span class="rt">画面を消さない<small>カートに置いて見るときに。ラウンド中の画面の右上（太陽のボタン）でも切り替えられます</small></span><input type="checkbox" switch class="sw" id="wake"${wakeOn ? " checked" : ""}></label>
+        <label class="row"><span class="rt">競技モード<small>距離の表示をすべて隠します。距離計が禁止の大会で使います</small></span><input type="checkbox" switch class="sw" id="comp"${extra.competition ? " checked" : ""}></label>
+      </div></section>
+      <section><h2 class="sec">データ</h2><div class="group">
+        <button class="row" data-act="backup"><span class="rt">バックアップを保存<small>${extra.lastBackup ? `前回：${fmtDate(todayKeyOf(extra.lastBackup))}` : "まだ保存していません"}</small></span>${IC.chev}</button>
+        <label class="row"><span class="rt">バックアップから戻す</span>${IC.chev}<input type="file" id="restoreFile" class="vh" accept="application/json,.json"></label>
+        <button class="row" data-act="csv"><span class="rt">CSVで書き出す<small>表計算のアプリで開けます</small></span>${IC.chev}</button>
+        <button class="row" data-act="copyall"><span class="rt">記録をコピー</span>${IC.chev}</button>
+        <button class="row" data-act="pasteall"><span class="rt">コピーした記録を戻す</span>${IC.chev}</button>
+      </div><p class="note">機種変更のときは、バックアップを保存して新しいiPhoneで戻します。Safariからホーム画面のアプリへ移すときは「記録をコピー」→ アプリで「コピーした記録を戻す」。スイング動画はどちらにも含まれません。</p></section>
+      ${inst ? `<section><h2 class="sec">ホーム画面に追加</h2>${inst}</section>` : ""}
+      <section><h2 class="sec">このアプリ</h2><div class="group"><button class="row" data-act="news"><span class="rt">新しくなったこと</span>${IC.chev}</button></div></section>`;
+  }
+
+  // ---------- what's new (once, after an update) ----------
+  function renderInfo(){
+    const el = $("info");
+    if(!info){ el.hidden = true; el.innerHTML = ""; return; }
+    el.hidden = false;
+    el.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="infoT"><div class="grab"></div>
+      <h3 id="infoT" style="margin:6px 0 2px;font-size:23px;font-weight:800">新しくなりました</h3>
+      <ul class="newslist">
+        <li>${IC.flag}<span><b>ラウンド中は全画面</b>タブが隠れるので、押し間違えません。左上のボタンで閉じても、下の黒い帯からすぐ戻れます。</span></li>
+        <li>${IC.list}<span><b>タブは画面の下に</b>記録・分析・スイング・設定を、親指の届く場所で切り替えます。</span></li>
+        <li>${IC.card}<span><b>ラウンドごとのページ</b>記録のラウンドをタップすると、スコアカード、パーとの差の内訳、楽天への転記、画像の共有がまとまっています。</span></li>
+        <li>${IC.hand}<span><b>押した手ごたえ</b>ショットやパットを押すと、対応するiPhoneでは軽く振動します。</span></li>
+        <li>${IC.video}<span><b>iPhoneで撮った動画を保存できるように</b>選んだ動画はその場でプレビューが出ます。</span></li>
+      </ul>
+      <button class="btn ink big full" data-act="infoclose">OK</button>
+    </div>`;
+  }
+  function closeInfo(){ info = null; extra.news = NEWS; saveExtra(); renderInfo(); }
+
+  // ---------- pull a sheet down to close it ----------
+  const SHEET_CLOSE = { sheet: () => { sheet = null; renderSheet(); }, ask: () => { ask = null; renderAsk(); }, half: () => { halfOpen = false; renderHalf(); }, shv: () => closeShare(), info: () => closeInfo() };
+  let pull = null;
+  document.addEventListener("pointerdown", e => {
+    const g = e.target.closest(".scrim .grab"); if(!g) return;
+    const sh = g.closest(".sheet"); if(!sh) return;
+    pull = { sh, id: sh.parentElement.id, y0: e.clientY, dy: 0, pid: e.pointerId };
+    sh.style.transition = "none";
+    try{ g.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  document.addEventListener("pointermove", e => { if(!pull || e.pointerId !== pull.pid) return; pull.dy = Math.max(0, e.clientY - pull.y0); pull.sh.style.transform = `translateY(${pull.dy}px)`; });
+  const endPull = () => {
+    if(!pull) return; const p = pull; pull = null;
+    p.sh.style.transition = "transform .18s ease-out";
+    if(p.dy > Math.min(120, p.sh.offsetHeight * .22)){ p.sh.style.transform = "translateY(100%)"; setTimeout(() => (SHEET_CLOSE[p.id] || (() => {}))(), 170); }
+    else p.sh.style.transform = "";
+  };
+  document.addEventListener("pointerup", endPull); document.addEventListener("pointercancel", endPull);
+  $("detail").addEventListener("scroll", () => $("detail").classList.toggle("scrolled", $("detail").scrollTop > 64), { passive: true });
+
   function toast(msg){ const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 2400); }
 
   // ---------- screen wake lock (optional) ----------
@@ -865,7 +1194,14 @@ h3.sub{margin:0;font-size:14px}
       case "holeout": if(r) openSheet(holeIdx(r), "out"); break;
       case "confirm": confirmSheet(); break;
       case "closesheet": sheet = null; renderSheet(); break;
-      case "newform": tab = "list"; showNew = true; render(); setTimeout(() => { const c = $("nfCourse"); if(c) c.focus(); }, 0); break;
+      case "newform": detailOpen = false; roundMode = false; tab = "home"; showNew = true; render(); window.scrollTo(0, 0); setTimeout(() => { const c = $("nfCourse"); if(c) c.focus(); }, 0); break;
+      case "rmopen": { const x = detailOpen && r && !r.finished ? r : liveOf(); if(x) openRound(x.id); break; }
+      case "rmclose": closeRound(); break;
+      case "rmcard": if(r) openDetail(r.id, "round"); break;
+      case "detailclose": closeDetail(); break;
+      case "wake": setWake(!wakeOn); break;
+      case "news": info = "news"; renderInfo(); break;
+      case "infoclose": closeInfo(); break;
       case "canceldel": confirmDel = null; render(); break;
       case "xfer": transfer = true; render(); break;
       case "closexfer": transfer = false; render(); break;
@@ -898,7 +1234,7 @@ h3.sub{margin:0;font-size:14px}
       case "clubedit": clubEdit = true; render(); break;
       case "clubdone": clubEdit = false; render(); toast("飛距離を保存しました"); break;
       case "a2hshide": extra.a2hsHidden = true; saveExtra(); render(); break;
-      case "newsok": extra.news = NEWS; saveExtra(); render(); break;
+      case "newsok": closeInfo(); break;
       case "copyall": copyAll(); break;
       case "pasteall": pasteAll(); break;
       case "swclose": closeViewer(); break;
@@ -916,9 +1252,10 @@ h3.sub{margin:0;font-size:14px}
   }
   document.addEventListener("click", e => {
     const b = e.target.closest("button");
-    if(!b){ if(e.target.id === "sheet"){ sheet = null; renderSheet(); } if(e.target.id === "ask"){ ask = null; renderAsk(); } return; }
+    if(!b){ const id = e.target.id; if(id && SHEET_CLOSE[id] && e.target.classList.contains("scrim")) SHEET_CLOSE[id](); return; }
     const d = b.dataset;
-    if(d.tab){ tab = d.tab; confirmDel = null; render(); return; }
+    if(d.tab){ const again = tab === d.tab; tab = d.tab; confirmDel = null; if(d.tab !== "home") showNew = false; render(); if(!again || window.scrollY) window.scrollTo(0, 0); return; }
+    if(d.course !== undefined){ nfDraft.course = d.course; const c = $("nfCourse"); if(c) c.value = d.course; document.querySelectorAll("[data-course]").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.course === d.course))); return; }
     if(d.act){ onAct(d.act); return; }
     if(d.go !== undefined){ go(Number(d.go)); return; }
     if(d.par){ const r = cur(); if(r){ r.holes[holeIdx(r)].par = Number(d.par); touch(r); render(); } return; }
@@ -926,16 +1263,16 @@ h3.sub{margin:0;font-size:14px}
     if(d.set){ sheet[d.set] = Number(d.v); renderSheet(); return; }
     if(d.st){ step(d.st, Number(d.d)); return; }
     if(d.edit !== undefined){ openSheet(Number(d.edit), "edit"); return; }
-    if(d.open){ curId = d.open; undo = []; saveLocal(); tab = rounds[curId].finished ? "card" : "play"; render(); return; }
+    if(d.open){ openDetail(d.open, tab === "home" ? "home" : "list"); return; }
     if(d.askdel){ confirmDel = d.askdel; render(); return; }
-    if(d.del){ delete rounds[d.del]; addPending(d.del); if(curId === d.del) curId = pickCurrent(); confirmDel = null; saveLocal(); clearTimeout(timer); timer = setTimeout(flush, 300); render(); toast("削除しました"); return; }
+    if(d.del){ delete rounds[d.del]; addPending(d.del); if(curId === d.del) curId = pickCurrent(); confirmDel = null; detailOpen = false; saveLocal(); clearTimeout(timer); timer = setTimeout(flush, 300); render(); toast("削除しました"); return; }
     if(d.xfer){ curId = d.xfer; saveLocal(); transfer = true; render(); return; }
     if(d.club !== undefined){ saveShot(d.club || null); return; }
     if(d.ost !== undefined){ const k = Number(d.ost), dd = Number(d.d), r = cur(); if(sheet){ const v = sheet.others[k]; sheet.others[k] = v == null ? (dd > 0 ? r.holes[sheet.hi].par : null) : Math.max(1, Math.min(20, v + dd)); renderSheet(); } return; }
     if(d.delplayer !== undefined){ const r = cur(); if(r){ const k = Number(d.delplayer); r.players.splice(k, 1); r.holes.forEach(h => { if(h.others) h.others.splice(k, 1); }); touch(r); render(); } return; }
     if(d.practiced !== undefined){ extra.practice = extra.practice || []; extra.practice.unshift({ date: todayKey(), theme: d.practiced }); extra.practice = extra.practice.slice(0, 200); saveExtra(); render(); toast("練習を記録しました"); return; }
     if(d.vopen){ openViewer(d.vopen); return; }
-    if(d.vdel){ idb.del(d.vdel).then(loadVideos); toast("動画を削除しました"); return; }
+    if(d.vdel){ deleteVideo(d.vdel); return; }
     if(d.vpick){ setB(d.vpick); return; }
     if(d.speed){ sv.speed = Number(d.speed); applySpeed(); renderViewer(); return; }
     if(d.key){ swSeekTo(Number(d.key)); return; }
@@ -953,14 +1290,11 @@ h3.sub{margin:0;font-size:14px}
     e.preventDefault();
     newRound($("nfDate").value || todayKey(), $("nfCourse").value.trim(), nfStart, nfGoal || 0);
   });
-  document.addEventListener("change", async e => {
-    if(e.target.id !== "wake") return;
-    wakeOn = e.target.checked;
-    if(wakeOn) await reqWake(); else { try{ if(wl) await wl.release(); }catch(_){} wl = null; }
-  });
+  document.addEventListener("change", e => { if(e.target.id === "wake") setWake(e.target.checked); });
   document.addEventListener("keydown", e => {
     if(e.key !== "Escape") return;
-    if(ask){ ask = null; renderAsk(); } else if(sheet){ sheet = null; renderSheet(); } else if(halfOpen){ halfOpen = false; renderHalf(); } else if(transfer){ transfer = false; render(); }
+    if(info) closeInfo(); else if(ask){ ask = null; renderAsk(); } else if(sheet){ sheet = null; renderSheet(); } else if(halfOpen){ halfOpen = false; renderHalf(); }
+    else if(!$("shv").hidden) closeShare(); else if(transfer){ transfer = false; render(); } else if(detailOpen) closeDetail(); else if(roundMode) closeRound();
   });
   document.addEventListener("visibilitychange", () => { if(!document.hidden){ if(wakeOn) reqWake(); flush(); } });
   window.addEventListener("online", flush);
@@ -973,9 +1307,10 @@ h3.sub{margin:0;font-size:14px}
   const saveExtra = () => { try{ localStorage.setItem(XKEY, JSON.stringify(extra)); }catch(e){} };
   document.addEventListener("change", e => {
     if(e.target.id === "restoreFile" && e.target.files[0]) restoreBackup(e.target.files[0]);
-    if(e.target.id === "vfile" && e.target.files[0]){ pendingVideo = e.target.files[0]; renderSwing(); }
+    if(e.target.id === "vfile") pickVideo(e.target.files && e.target.files[0]);
   });
   document.addEventListener("input", e => {
+    if(e.target.id === "vfile") pickVideo(e.target.files && e.target.files[0]);
     if(e.target.id === "swSeek" && sv.a){ swSeekTo(Number(e.target.value)); }
     const c = e.target.dataset && e.target.dataset.clubin;
     if(c){ extra.clubs = extra.clubs || {}; const v = Math.round(Number(e.target.value)); if(v > 0 && v < 450) extra.clubs[c] = v; else delete extra.clubs[c]; saveExtra(); }
@@ -1011,13 +1346,13 @@ h3.sub{margin:0;font-size:14px}
   function clubHtml(){
     const rows = clubDist();
     if(clubEdit){
-      return `<div style="background:var(--paper);border:1.5px solid var(--graphite)">${rows.map(x => `<label class="clubrow"><span class="cl">${x.c}</span><input type="number" inputmode="numeric" min="1" max="449" data-clubin="${x.c}" value="${x.man || ""}" placeholder="${x.avg || ""}" aria-label="${x.c}の飛距離"><span class="gsmall" style="flex:1">ヤード</span><span class="gsmall">${x.n ? `実測 平均${x.avg}・${x.n}回` : ""}</span></label>`).join("")}</div>
+      return `<div class="clubtbl">${rows.map(x => `<label class="clubrow"><span class="cl">${x.c}</span><input type="number" inputmode="numeric" min="1" max="449" data-clubin="${x.c}" value="${x.man || ""}" placeholder="${x.avg || ""}" aria-label="${x.c}の飛距離"><span class="gsmall" style="flex:1">ヤード</span><span class="gsmall">${x.n ? `実測 平均${x.avg}・${x.n}回` : ""}</span></label>`).join("")}</div>
         <p class="note" style="margin-top:6px">ランを含めた、いつもの飛距離を入れてください。実測が2回以上あるクラブは、実測の平均を使います。</p>
         <button class="btn sm ink" style="margin-top:8px" data-act="clubdone">完了</button>`;
     }
     const shown = rows.filter(x => x.use);
-    return (shown.length ? `<div style="background:var(--paper);border:1.5px solid var(--graphite)">${shown.map(x => `<div class="clubrow"><span class="cl">${x.c}</span><span class="av">${x.use}</span><span class="gsmall" style="flex:1">ヤード${x.n >= 2 ? "（実測の平均）" : x.man ? "（入力）" : "（実測1回）"}</span><span class="gsmall">${x.n ? `最長 ${x.max}・${x.n}回` : ""}</span></div>`).join("")}</div>`
-      : `<div class="emptybox">いつもの飛距離を入れるか、プレー画面の「距離」で飛距離を記録すると、距離の画面におすすめのクラブが出ます。</div>`)
+    return (shown.length ? `<div class="clubtbl">${shown.map(x => `<div class="clubrow"><span class="cl">${x.c}</span><span class="av">${x.use}</span><span class="gsmall" style="flex:1">ヤード${x.n >= 2 ? "（実測の平均）" : x.man ? "（入力）" : "（実測1回）"}</span><span class="gsmall">${x.n ? `最長 ${x.max}・${x.n}回` : ""}</span></div>`).join("")}</div>`
+      : `<div class="emptybox">いつもの飛距離を入れるか、ラウンド中の「距離」で飛距離を記録すると、距離の画面におすすめのクラブが出ます。</div>`)
       + `<button class="btn sm" style="margin-top:8px" data-act="clubedit">${shown.length ? "飛距離を直す" : "いつもの飛距離を入れる"}</button>`;
   }
 
@@ -1248,19 +1583,19 @@ h3.sub{margin:0;font-size:14px}
     const vals = last.map(r => totals(r).s), lo = Math.min(...vals) - 3, hi = Math.max(...vals) + 3;
     const W = 340, H = 140, x = i => 24 + i * (W - 48) / (last.length - 1), y = v => 20 + (hi - v) / (hi - lo) * (H - 44);
     const pts = vals.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
-    const dots = vals.map((v, i) => `<circle cx="${x(i)}" cy="${y(v)}" r="${i === vals.length - 1 ? 5 : 3.5}" fill="${i === vals.length - 1 ? "var(--flag)" : "var(--graphite)"}" stroke="var(--graphite)" stroke-width="1"><title>${last[i].date} ${v}打</title></circle><text x="${x(i)}" y="${y(v) - 9}" text-anchor="middle" font-size="11" fill="var(--graphite)" font-family="var(--f-num)" font-weight="800">${v}</text>`).join("");
-    const labels = last.map((r, i) => `<text x="${x(i)}" y="${H - 6}" text-anchor="middle" font-size="9" fill="var(--muted)">${r.date.slice(5).replace("-", "/")}</text>`).join("");
-    return `<div class="trend"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="直近${last.length}ラウンドのスコア"><polyline points="${pts}" fill="none" stroke="var(--muted)" stroke-width="1.5"/>${dots}${labels}</svg></div>`;
+    const dots = vals.map((v, i) => `<circle cx="${x(i)}" cy="${y(v)}" r="${i === vals.length - 1 ? 5 : 3.5}" fill="${i === vals.length - 1 ? "var(--flag)" : "var(--ink)"}" stroke="var(--ink)" stroke-width="1"><title>${last[i].date} ${v}打</title></circle><text x="${x(i)}" y="${y(v) - 9}" text-anchor="middle" font-size="11" fill="var(--ink)" font-family="var(--f-num)" font-weight="800">${v}</text>`).join("");
+    const labels = last.map((r, i) => `<text x="${x(i)}" y="${H - 6}" text-anchor="middle" font-size="9" fill="var(--sub)">${r.date.slice(5).replace("-", "/")}</text>`).join("");
+    return `<div class="trend"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="直近${last.length}ラウンドのスコア"><polyline points="${pts}" fill="none" stroke="var(--sub)" stroke-width="1.5"/>${dots}${labels}</svg></div>`;
   }
   function renderStats(){
     const m = $("main"), st = stats();
     const f1 = v => v == null ? "—" : v.toFixed(1), pc = v => v == null ? "—" : Math.round(v * 100) + "%";
     const sg = v => v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(2);
-    if(!st.holes){ m.innerHTML = `<div class="emptybox">ラウンドを記録すると、ここに平均スコアや、パーとの差の内訳、次の練習テーマが出ます。</div><section><h2 class="sec">クラブ別の飛距離</h2>${clubHtml()}</section>`; return; }
+    if(!st.holes){ m.innerHTML = `<header class="lt"><h1>分析</h1></header><div class="emptybox">ラウンドを記録すると、ここに平均スコアや、パーとの差の内訳、次の練習テーマが出ます。</div><section><h2 class="sec">クラブ別の飛距離</h2>${clubHtml()}</section>`; return; }
     const tips = suggestions(st), log = (extra.practice || []).slice(0, 5), eff = practiceEffect();
     const goals = st.full.filter(r => r.goal), hit = goals.filter(r => totals(r).s <= r.goal).length;
     const L = st.loss, tot = L.P + L.A + L.U;
-    m.innerHTML = `
+    m.innerHTML = `<header class="lt"><h1>分析</h1></header>
       <div class="kpis">
         <div class="kpi"><span>平均スコア</span><b>${st.avg == null ? "—" : st.avg.toFixed(1)}</b><small>18ホール ${st.full.length}回</small></div>
         <div class="kpi"><span>ベスト</span><b>${st.best ?? "—"}</b><small>${goals.length ? `目標達成 ${hit}/${goals.length}回` : "&nbsp;"}</small></div>
@@ -1277,54 +1612,180 @@ h3.sub{margin:0;font-size:14px}
       ${st.full.length >= 2 ? `<section><h2 class="sec">スコアの推移（直近10ラウンド）</h2>${trendSvg(st.full)}</section>` : ""}
       <section><h2 class="sec">次の練習テーマ</h2><div style="display:flex;flex-direction:column;gap:8px">
         ${tips.map(t => `<div class="tip"><b>${esc(t.theme)}</b><p>${esc(t.why)}</p>${t.film ? `<span class="film">撮ると良いスイング：${esc(t.film)}</span>` : ""}<div class="rowbtns"><button class="btn sm" data-practiced="${esc(t.theme)}">今日これを練習した</button>${THEME_SHOOT[t.theme] ? `<button class="btn sm" data-shoot="${esc(t.theme)}">このテーマで撮る</button>` : ""}</div></div>`).join("")}
-      </div>${log.length ? `<div class="plog" style="margin-top:8px"><b style="color:var(--graphite)">練習の記録</b>${log.map(l => `<span>${fmtDate(l.date)}　${esc(l.theme)}</span>`).join("")}</div>` : ""}</section>
+      </div>${log.length ? `<div class="plog" style="margin-top:8px"><b style="color:var(--ink)">練習の記録</b>${log.map(l => `<span>${fmtDate(l.date)}　${esc(l.theme)}</span>`).join("")}</div>` : ""}</section>
       ${eff.length ? `<section><h2 class="sec">練習はスコアに出ている？</h2><div style="display:flex;flex-direction:column;gap:8px">${eff.map(effHtml).join("")}</div>
         <p class="note" style="margin-top:6px">練習を始めた日の前と後のラウンドを比べています。ラウンド数が少ないうちは、たまたまの差も大きく出ます。</p></section>` : ""}
       <section><h2 class="sec">クラブ別の飛距離</h2>${clubHtml()}</section>`;
   }
 
   // ================= swing videos (IndexedDB) =================
-  const idb = (() => {
-    let dbp = null;
-    const open = () => dbp || (dbp = new Promise((res, rej) => {
-      const q = indexedDB.open("golf-swing", 1);
-      q.onupgradeneeded = () => q.result.createObjectStore("videos", { keyPath: "id" });
-      q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error);
-    }));
-    const run = (mode, fn) => open().then(d => new Promise((res, rej) => {
-      const t = d.transaction("videos", mode), req = fn(t.objectStore("videos"));
-      t.oncomplete = () => res(req ? req.result : undefined); t.onerror = () => rej(t.error);
-    }));
-    return { all: () => run("readonly", s => s.getAll()), put: v => run("readwrite", s => s.put(v)), del: id => run("readwrite", s => s.delete(id)) };
-  })();
-  let videos = null, pendingVideo = null, videoErr = "", shootPreset = null;
-  function loadVideos(){ idb.all().then(v => { videos = (v || []).sort((a, b) => b.at - a.at); if(tab === "swing") renderSwing(); }).catch(() => { videos = []; videoErr = "この画面では動画を保存できません（プライベートブラウズでは使えないことがあります）"; if(tab === "swing") renderSwing(); }); }
+  // The list (club, date, note, analysis) lives in "golf-swing". The video itself is kept as plain bytes, in 4MB
+  // pieces, in "golf-swing-data": Safari on iPhone often refuses to store a picked video file as it is
+  // ("Error preparing Blob/File data to be stored in object store") but accepts bytes, and pieces keep memory
+  // use low for long 4K clips. Videos saved whole by older versions still open.
+  const IDBW = { save: 30000, read: 30000 };
+  let PART = 4 * 1048576;
+  const errOf = (name, msg) => { const e = new Error(msg || name); e.name = name; return e; };
+  const withTimeout = (p, ms, name) => new Promise((res, rej) => { const tm = setTimeout(() => rej(errOf(name)), ms); p.then(v => { clearTimeout(tm); res(v); }, e => { clearTimeout(tm); rej(e); }); });
+  function idbOpen(name, setup){
+    let dbp = null, conn = null;
+    const get = () => dbp || (dbp = new Promise((res, rej) => {
+      const q = indexedDB.open(name, 1);
+      q.onupgradeneeded = () => setup(q.result);
+      q.onsuccess = () => { const d = conn = q.result; d.onversionchange = () => { d.close(); dbp = null; }; d.onclose = () => { dbp = null; }; res(d); };
+      q.onerror = () => rej(q.error || errOf("UnknownError"));
+    }).catch(e => { dbp = null; throw e; }));
+    const reset = () => { try{ if(conn) conn.close(); }catch(e){} conn = null; dbp = null; };
+    return { get, reset };
+  }
+  // One transaction. Gives up after ms (Safari sometimes never answers) and retries once on a fresh
+  // connection, because iOS can drop the database connection while the camera or the photo picker is open.
+  function idbRun(h, store, mode, fn, ms){
+    const once = d => new Promise((res, rej) => {
+      let tm = 0, done = false, t = null, req;
+      const fin = (ok, v) => { if(done) return; done = true; clearTimeout(tm); ok ? res(v) : rej(v); };
+      try{ t = d.transaction(store, mode); req = fn(t.objectStore(store)); }
+      catch(e){ fin(false, e); try{ if(t) t.abort(); }catch(_){} return; }
+      tm = setTimeout(() => { try{ t.abort(); }catch(_){} fin(false, errOf("TimeoutError")); }, ms || 15000);
+      t.oncomplete = () => fin(true, req ? req.result : undefined);
+      t.onerror = e => fin(false, (e && e.target && e.target.error) || t.error || errOf("UnknownError"));
+      t.onabort = () => fin(false, t.error || errOf("AbortError"));
+    });
+    return h.get().then(once).catch(e => {
+      if(e && (e.name === "QuotaExceededError" || e.name === "DataCloneError")) throw e;
+      h.reset();
+      return h.get().then(once);
+    });
+  }
+  const metaDB = idbOpen("golf-swing", d => { if(!d.objectStoreNames.contains("videos")) d.createObjectStore("videos", { keyPath: "id" }); });
+  const dataDB = idbOpen("golf-swing-data", d => { if(!d.objectStoreNames.contains("parts")) d.createObjectStore("parts"); });
+  const partKey = (id, i) => id + "#" + String(i).padStart(5, "0");
+  const partRange = id => IDBKeyRange.bound(id + "#", id + "#~");
+  const idb = {
+    all: () => idbRun(metaDB, "videos", "readonly", s => s.getAll()),
+    put: v => idbRun(metaDB, "videos", "readwrite", s => s.put(v)),
+    del: id => idbRun(metaDB, "videos", "readwrite", s => s.delete(id))
+  };
+  const vdata = {
+    put: (id, i, buf) => idbRun(dataDB, "parts", "readwrite", s => s.put(buf, partKey(id, i)), IDBW.save),
+    one: (id, i) => idbRun(dataDB, "parts", "readonly", s => s.get(partKey(id, i)), IDBW.read),
+    del: id => idbRun(dataDB, "parts", "readwrite", s => s.delete(partRange(id))),
+    keys: () => idbRun(dataDB, "parts", "readonly", s => s.getAllKeys())
+  };
+  function readPart(f, a, b){
+    const p = f.slice(a, b);
+    const r = p.arrayBuffer ? p.arrayBuffer() : new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = () => rej(fr.error || errOf("NotReadableError")); fr.readAsArrayBuffer(p); });
+    return withTimeout(r, IDBW.read, "ReadTimeout");
+  }
+  const videoType = f => /^video\//.test(f.type || "") ? f.type : /\.(mov|qt)$/i.test(f.name || "") ? "video/quicktime" : /\.webm$/i.test(f.name || "") ? "video/webm" : "video/mp4";
+  // Piece by piece: each piece becomes a small Blob right away, so a long 4K clip never sits in memory twice.
+  async function videoBlob(v){
+    if(v.blob) return v.blob;
+    const bl = [];
+    for(let i = 0; i < v.parts; i++){
+      const buf = await vdata.one(v.id, i);
+      if(!buf || !buf.byteLength) throw errOf("NotFoundError", `part ${i + 1}/${v.parts}`);
+      bl.push(new Blob([buf]));
+    }
+    return new Blob(bl, { type: v.type || "video/mp4" });
+  }
+
+  let videos = null, pendingVideo = null, pendingUrl = "", pendingForm = null, saving = null, videoErr = "", shootPreset = null, swept = false;
+  function loadVideos(){
+    idb.all().then(v => { videos = (v || []).sort((a, b) => b.at - a.at); if(tab === "swing") renderSwing(); sweepParts(); })
+      .catch(e => { videos = []; videoErr = `この画面では動画を保存できません。プライベートブラウズでは使えないことがあります（${(e && e.name) || "エラー"}）`; if(tab === "swing") renderSwing(); });
+  }
+  // pieces left behind when the app was closed in the middle of saving
+  function sweepParts(){
+    if(swept || saving != null) return; swept = true;
+    const ids = new Set(videos.map(v => v.id)), now = Date.now();
+    vdata.keys().then(ks => {
+      const gone = new Set();
+      (ks || []).forEach(k => { const id = String(k).split("#")[0]; if(!ids.has(id) && !(now - parseInt(id.slice(1), 36) < 3600000)) gone.add(id); });
+      gone.forEach(id => vdata.del(id).catch(() => {}));
+    }).catch(() => {});
+  }
   function renderSwing(){
     const m = $("main");
-    if(videos == null){ m.innerHTML = `<div class="emptybox">読み込み中…</div>`; loadVideos(); return; }
+    if(videos == null){ m.innerHTML = `<header class="lt"><h1>スイング</h1></header><div class="emptybox">読み込み中…</div>`; loadVideos(); return; }
     const clubs = ["1W","3W","5W","UT","5I","6I","7I","8I","9I","PW","AW","SW","PT"];
-    m.innerHTML = `
+    const pv = pendingVideo, fm = pendingForm || {}, club = fm.club || (shootPreset && shootPreset.club), view = fm.view || (shootPreset && shootPreset.view);
+    m.innerHTML = `<header class="lt"><h1>スイング</h1></header>
       <section class="panel"><div class="addv">
-        <b>スイングを撮る・追加する</b>
-        <label class="btn ink" style="text-align:center;cursor:pointer">${pendingVideo ? "別の動画を選ぶ" : "動画を撮る／選ぶ"}<input type="file" id="vfile" accept="video/*" hidden></label>
+        <label class="btn${pv ? "" : " ink"}" style="text-align:center;cursor:pointer">${pv ? "別の動画を選ぶ" : "動画を撮る／選ぶ"}<input type="file" id="vfile" class="vh" accept="video/*"${saving != null ? " disabled" : ""}></label>
         ${shootPreset ? `<span class="gsmall">テーマ「${esc(shootPreset.theme)}」：${shootPreset.club}を${shootPreset.view === "dtl" ? "後方" : "正面"}から撮りましょう　<button class="linkish" style="padding:0" data-act="presetoff">テーマなしにする</button></span>` : ""}
-        ${pendingVideo ? `<span class="gsmall">${esc(pendingVideo.name || "動画")}（${(pendingVideo.size / 1048576).toFixed(1)}MB）</span>
-          <div class="grow"><select id="vclub" aria-label="クラブ">${clubs.map(c => `<option${shootPreset && shootPreset.club === c ? " selected" : ""}>${c}</option>`).join("")}</select>
-          <select id="vview" aria-label="撮った向き"><option value="face">正面から</option><option value="dtl"${shootPreset && shootPreset.view === "dtl" ? " selected" : ""}>後方から</option></select></div>
-          <input type="text" id="vnote" placeholder="メモ（例：練習場、右に曲がる）" autocomplete="off">
-          <button class="btn ink" data-act="savevideo">保存する</button>` : `<span class="gsmall">全身が入るように、体の正面か後方から撮ってください。3〜6秒くらいの長さがおすすめです。</span>`}
+        ${pv ? `<video class="vprev" id="vprev" playsinline muted controls preload="metadata" src="${pendingUrl}#t=0.001"></video>
+          <span class="gsmall">${esc(pv.name || "動画")}（${(pv.size / 1048576).toFixed(1)}MB<span id="vdur"></span>）</span>
+          <span class="gsmall" id="vprevmsg">${pv.size > 150 * 1048576 ? BIGVIDEO : ""}</span>
+          <div class="grow"><select id="vclub" aria-label="クラブ">${clubs.map(c => `<option${club === c ? " selected" : ""}>${c}</option>`).join("")}</select>
+          <select id="vview" aria-label="撮った向き"><option value="face">正面から</option><option value="dtl"${view === "dtl" ? " selected" : ""}>後方から</option></select></div>
+          <input type="text" id="vnote" placeholder="メモ（例：練習場、右に曲がる）" autocomplete="off" value="${esc(fm.note || "")}">
+          <button class="btn ink" id="vsave" data-act="savevideo"${saving != null ? " disabled" : ""}>${saving != null ? `保存中… ${saving}%` : "保存する"}</button>` : `<span class="gsmall">全身が入るように、体の正面か後方から撮ってください。3〜6秒くらいの長さがおすすめです。</span>`}
       </div></section>
-      ${videoErr ? `<div class="warnline">${esc(videoErr)}</div>` : ""}
+      ${videoErr ? `<div class="vmsg" role="alert">${esc(videoErr)}</div>` : ""}
       <section><h2 class="sec">保存したスイング</h2>
       ${videos.length ? `<ul class="vlist">${videos.map(v => `<li><button class="vo" data-vopen="${v.id}"><b>${esc(v.club)}　${v.view === "dtl" ? "後方" : "正面"}${v.theme ? `<span class="vtheme">${esc(v.theme)}</span>` : ""}</b><span>${fmtDate(v.date)}${v.note ? "　" + esc(v.note) : ""}${v.analysis ? "　解析済み" : ""}</span></button><button class="btn sm" data-vdel="${v.id}">削除</button></li>`).join("")}</ul>`
         : `<div class="emptybox">まだ動画がありません。撮ったスイングは、このiPhoneの中にだけ保存されます。</div>`}
       </section>`;
+    const pvEl = $("vprev"); if(pvEl) bindPreview(pvEl);
   }
-  function saveVideo(){
-    if(!pendingVideo) return;
-    const v = { id: "v" + Date.now().toString(36), at: Date.now(), date: todayKey(), club: $("vclub").value, view: $("vview").value, note: $("vnote").value.trim(), theme: shootPreset ? shootPreset.theme : "", blob: pendingVideo, analysis: null };
-    idb.put(v).then(() => { pendingVideo = null; shootPreset = null; toast("スイングを保存しました"); loadVideos(); })
-      .catch(() => toast("保存できませんでした。容量が足りないか、この画面では保存できません"));
+  // Shows the picked clip right away, so it is clear the phone handed it over.
+  const BIGVIDEO = "長い（大きい）動画です。写真アプリの「編集」でスイングの前後だけに切り取ると、保存も再生も解析も軽くなります。";
+  function bindPreview(v){
+    const msg = t => { const m = $("vprevmsg"); if(m) m.textContent = t; };
+    v.addEventListener("loadedmetadata", () => {
+      const d = v.duration; if(!(d > 0) || !isFinite(d)) return;
+      const s = $("vdur"); if(s) s.textContent = "・" + d.toFixed(1) + "秒";
+      if(d > 30) msg(BIGVIDEO);
+    });
+    v.addEventListener("error", () => msg("この画面では再生できない形式のようです。保存はできますが、あとで再生できないかもしれません。"));
+  }
+  function pickVideo(f){
+    if(!f || f === pendingVideo || saving != null) return;
+    clearPending(); videoErr = "";
+    if(!f.size) videoErr = "動画の中身を受け取れませんでした。iCloudにある動画は、写真アプリで一度再生してから選び直してください。";
+    else { pendingVideo = f; pendingUrl = URL.createObjectURL(f); }
+    renderSwing();
+  }
+  function clearPending(){ if(pendingUrl) URL.revokeObjectURL(pendingUrl); pendingUrl = ""; pendingVideo = null; pendingForm = null; }
+  function showSaving(){
+    const b = $("vsave"); if(b){ b.disabled = saving != null; b.textContent = saving != null ? `保存中… ${saving}%` : "保存する"; }
+    const i = $("vfile"); if(i) i.disabled = saving != null;
+    const mb = document.querySelector(".vmsg"); if(mb && saving != null) mb.remove();
+  }
+  function saveErrText(e){
+    const n = (e && e.name) || "";
+    if(n === "QuotaExceededError") return "iPhoneの空き容量が足りないため、保存できませんでした。いらない写真や動画を消してから、もう一度お試しください。";
+    if(n === "NotReadableError" || n === "NotFoundError" || n === "ReadTimeout") return "動画を読み取れませんでした。写真アプリでその動画が再生できるか確かめてから、もう一度選んでください（iCloudにある動画は、iPhoneに読み込まれてからでないと渡せません）。";
+    if(n === "TimeoutError") return "保存が途中で止まりました。アプリを開き直して、もう一度お試しください。";
+    return `保存できませんでした。アプリを開き直して、もう一度お試しください（${n || "エラー"}${e && e.message && e.message !== n ? "：" + e.message : ""}）`;
+  }
+  async function saveVideo(){
+    const f = pendingVideo; if(!f || saving != null) return;
+    pendingForm = { club: $("vclub").value, view: $("vview").value, note: $("vnote").value.trim() };
+    const n = Math.max(1, Math.ceil(f.size / PART));
+    const v = { id: "v" + Date.now().toString(36), at: Date.now(), date: todayKey(), club: pendingForm.club, view: pendingForm.view, note: pendingForm.note, theme: shootPreset ? shootPreset.theme : "", analysis: null, type: videoType(f), size: f.size, parts: n };
+    saving = 0; videoErr = ""; showSaving();
+    try{
+      for(let i = 0; i < n; i++){
+        const buf = await readPart(f, i * PART, Math.min(f.size, (i + 1) * PART));
+        if(!buf || !buf.byteLength) throw errOf("NotReadableError");
+        await vdata.put(v.id, i, buf);
+        saving = Math.round((i + 1) / n * 100); showSaving();
+      }
+      await idb.put(v);
+    }catch(e){
+      saving = null; vdata.del(v.id).catch(() => {});
+      videoErr = saveErrText(e); if(tab === "swing") renderSwing(); else toast("動画を保存できませんでした");
+      return;
+    }
+    saving = null; clearPending(); shootPreset = null;
+    toast("スイングを保存しました");
+    try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); }catch(e){}
+    loadVideos();
+  }
+  function deleteVideo(id){
+    idb.del(id).then(() => { toast("動画を削除しました"); vdata.del(id).catch(() => {}); loadVideos(); }).catch(() => toast("削除できませんでした"));
   }
 
   // ================= swing viewer =================
@@ -1332,18 +1793,27 @@ h3.sub{margin:0;font-size:14px}
   function paneHtml(key, v){
     return `<div class="pane" id="pane-${key}"><video id="vid-${key}" playsinline muted preload="auto"></video><canvas id="cv-${key}"></canvas><span class="tagv">${key === "a" ? "A" : "B"}　${esc(v.club)} ${fmtDate(v.date)}</span></div>`;
   }
-  function openViewer(id){
-    const v = videos.find(x => x.id === id); if(!v) return;
+  let openTok = 0;
+  async function openViewer(id){
+    const v = (videos || []).find(x => x.id === id); if(!v) return;
     closeViewer(true);
-    sv.a = { v, url: URL.createObjectURL(v.blob) }; sv.b = null; sv.lines = []; sv.drawing = false; sv.picking = false; sv.busy = "";
-    const el = $("swv"); el.hidden = false;
+    const tok = ++openTok, el = $("swv"); el.hidden = false;
+    sv.b = null; sv.lines = []; sv.drawing = false; sv.picking = false; sv.busy = "";
     el.innerHTML = `<div class="swtop"><button class="pill" data-act="swclose">閉じる</button><span id="swTitle"></span></div>
-      <div class="stage" id="stage">${paneHtml("a", v)}</div><div class="swctl" id="swctl"></div>`;
+      <div class="stage" id="stage"><div class="swres">動画を読み込んでいます…</div></div><div class="swctl" id="swctl"></div>`;
+    let blob;
+    try{ blob = await videoBlob(v); }
+    catch(e){ if(tok === openTok){ closeViewer(true); toast("動画を読み込めませんでした"); } return; }
+    if(tok !== openTok) return;
+    sv.a = { v, url: URL.createObjectURL(blob) };
+    $("stage").innerHTML = paneHtml("a", v);
     bindVideo("a"); renderViewer();
   }
   function bindVideo(key){
     const st = sv[key], vid = $("vid-" + key);
-    vid.src = st.url; vid.playbackRate = sv.speed;
+    vid.addEventListener("error", () => { st.err = (vid.error && vid.error.code) || 1; renderViewer(); });
+    // "#t=0.001" makes iPhone draw the first frame instead of a black box
+    vid.defaultPlaybackRate = sv.speed; vid.src = st.url + "#t=0.001"; vid.playbackRate = sv.speed;
     vid.addEventListener("loadedmetadata", () => { sizeCanvas(key); if(key === "a") renderViewer(); drawOverlay(); });
     vid.addEventListener("seeked", drawOverlay);
     vid.addEventListener("pause", () => { cancelAnimationFrame(sv.raf); renderViewer(); });
@@ -1392,20 +1862,28 @@ h3.sub{margin:0;font-size:14px}
     const t = va.currentTime - offsetOf(sv.a) + offsetOf(sv.b);
     if(Math.abs(vb.currentTime - t) > 0.08) vb.currentTime = Math.max(0, Math.min(vb.duration || 0, t));
   }
-  function swSeekTo(t){ const va = $("vid-a"); if(!va) return; va.pause(); const vb = $("vid-b"); if(vb) vb.pause(); va.currentTime = Math.max(0, Math.min(va.duration || 0, t)); syncSeek(); }
+  function swSeekTo(t){ const va = $("vid-a"); if(!va || sv.busy) return; va.pause(); const vb = $("vid-b"); if(vb) vb.pause(); va.currentTime = Math.max(0, Math.min(va.duration || 0, t)); syncSeek(); }
   function swStep(d){ const va = $("vid-a"); if(va) swSeekTo(va.currentTime + d / 30); }
   function swPlay(){
-    const va = $("vid-a"), vb = $("vid-b"); if(!va) return;
+    const va = $("vid-a"), vb = $("vid-b"); if(!va || sv.busy) return;
     if(va.paused){ if(va.ended || va.currentTime >= va.duration - 0.05) va.currentTime = 0; syncSeek(); va.play().catch(() => {}); if(vb) vb.play().catch(() => {}); }
     else { va.pause(); if(vb) vb.pause(); }
   }
-  function applySpeed(){ ["a", "b"].forEach(k => { const v = $("vid-" + k); if(v) v.playbackRate = sv.speed; }); }
-  function setB(id){
-    const st = $("stage"); if(!st) return;
+  function applySpeed(){ ["a", "b"].forEach(k => { const v = $("vid-" + k); if(v){ v.defaultPlaybackRate = sv.speed; v.playbackRate = sv.speed; } }); }
+  async function setB(id){
+    if(!$("stage") || sv.busy) return;
     if(sv.b){ URL.revokeObjectURL(sv.b.url); sv.b = null; const pb = $("pane-b"); if(pb) pb.remove(); }
     sv.picking = false;
-    if(id){ const v = videos.find(x => x.id === id); if(v){ sv.b = { v, url: URL.createObjectURL(v.blob) }; st.insertAdjacentHTML("beforeend", paneHtml("b", v)); bindVideo("b"); } }
-    setTimeout(() => { sizeCanvas("a"); if(sv.b) sizeCanvas("b"); syncSeek(); drawOverlay(); }, 60);
+    const v = id && (videos || []).find(x => x.id === id);
+    if(v){
+      const a = sv.a; sv.busy = "比べる動画を読み込んでいます…"; renderViewer();
+      let blob = null; try{ blob = await videoBlob(v); }catch(e){}
+      if(sv.a !== a || !$("stage")) return;
+      sv.busy = "";
+      if(!blob){ renderViewer(); toast("動画を読み込めませんでした"); return; }
+      sv.b = { v, url: URL.createObjectURL(blob) }; $("stage").insertAdjacentHTML("beforeend", paneHtml("b", v)); bindVideo("b");
+    }
+    setTimeout(() => { if(!sv.a) return; sizeCanvas("a"); if(sv.b) sizeCanvas("b"); syncSeek(); drawOverlay(); }, 60);
     renderViewer();
   }
   function renderViewer(){
@@ -1415,6 +1893,7 @@ h3.sub{margin:0;font-size:14px}
     const others = (videos || []).filter(x => x.id !== sv.a.v.id);
     el.innerHTML = `
       ${sv.picking ? `<div class="swres"><b style="font-family:inherit;font-size:13px;color:#fff">比べる動画を選ぶ</b>${others.length ? others.map(o => `<button class="swb" style="text-align:left" data-vpick="${o.id}">${esc(o.club)} ${o.view === "dtl" ? "後方" : "正面"}　${fmtDate(o.date)}${o.note ? "　" + esc(o.note) : ""}</button>`).join("") : "<span>ほかの動画がありません</span>"}</div>` : ""}
+      ${[sv.a, sv.b].filter(s => s && s.err).map(s => `<div class="swres">${s === sv.b ? "B：" : ""}この動画を再生できませんでした（${esc(s.v.type || "形式不明")}）。写真アプリで再生できる動画か確かめてください。</div>`).join("")}
       ${an ? analysisHtml(an) : ""}
       ${sv.busy ? `<div class="swres">${esc(sv.busy)}</div>` : ""}
       <input type="range" id="swSeek" min="0" max="${dur.toFixed(2)}" step="0.01" value="${va ? va.currentTime : 0}" aria-label="再生位置">
@@ -1430,15 +1909,17 @@ h3.sub{margin:0;font-size:14px}
         <button class="swb" data-act="swclear">線を消す</button>
       </div>
       <div class="swrow">
-        ${sv.b ? `<button class="swb" data-act="swuncompare">比較をやめる</button>` : `<button class="swb" data-act="swcompare" aria-pressed="${sv.picking}">別の動画と比べる</button>`}
+        ${sv.b ? `<button class="swb" data-act="swuncompare"${sv.busy ? " disabled" : ""}>比較をやめる</button>` : `<button class="swb" data-act="swcompare" aria-pressed="${sv.picking}"${sv.busy ? " disabled" : ""}>別の動画と比べる</button>`}
         <button class="swb" data-act="swai" ${sv.busy ? "disabled" : ""} style="flex:1">${an ? "AIでもう一度解析" : "AIでスイング解析"}</button>
       </div>`;
     sizeCanvas("a"); if(sv.b) sizeCanvas("b"); drawOverlay();
   }
   function closeViewer(silent){
-    cancelAnimationFrame(sv.raf);
+    openTok++; cancelAnimationFrame(sv.raf);
     ["a", "b"].forEach(k => { if(sv[k]) URL.revokeObjectURL(sv[k].url); sv[k] = null; });
-    const el = $("swv"); el.hidden = true; el.innerHTML = "";
+    sv.busy = "";
+    const el = $("swv"), was = !el.hidden; el.hidden = true; el.innerHTML = "";
+    if(!silent && was && tab === "swing" && videos) renderSwing();   // shows 解析済み right away
   }
 
   // ================= AI swing analysis (runs on the phone, nothing is uploaded) =================
@@ -1455,30 +1936,54 @@ h3.sub{margin:0;font-size:14px}
     })().catch(e => { landmarkerP = null; throw e; });
     return landmarkerP;
   }
-  const seek = (v, t) => new Promise(res => { const done = () => { v.removeEventListener("seeked", done); res(); }; v.addEventListener("seeked", done); v.currentTime = t; });
+  // Every wait has a time limit: on iPhone a video that is not ready may never send the event.
+  const seek = (v, t) => new Promise(res => { let done = false; const fin = () => { if(done) return; done = true; clearTimeout(tm); v.removeEventListener("seeked", fin); res(); }; const tm = setTimeout(fin, 4000); v.addEventListener("seeked", fin); v.currentTime = t; });
+  const whenReady = (v, ms) => new Promise(res => {
+    if(v.readyState >= 2) return res(true);
+    let done = false; const evs = ["loadeddata", "canplay"];
+    const fin = ok => { if(done) return; done = true; clearTimeout(tm); evs.forEach(e => v.removeEventListener(e, yes)); v.removeEventListener("error", no); res(ok); };
+    const yes = () => fin(true), no = () => fin(false), tm = setTimeout(() => fin(v.readyState >= 2), ms);
+    evs.forEach(e => v.addEventListener(e, yes)); v.addEventListener("error", no);
+  });
+  let lmkTs = 0;   // MediaPipe wants ever-increasing timestamps, also across runs
   async function runAnalysis(){
     if(!sv.a || sv.busy) return;
     const target = sv.a;
     sv.busy = "AIの準備をしています…（初回は数十秒かかることがあります）"; renderViewer();
     let lmk;
     try{ lmk = await getLandmarker(); }
-    catch(e){ sv.busy = ""; renderViewer(); toast("AIを読み込めませんでした。電波のある場所で、https のページから開いてください"); return; }
-    const v = document.createElement("video"); v.muted = true; v.playsInline = true; v.preload = "auto"; v.src = target.url;
-    await new Promise(res => { v.onloadeddata = res; v.onerror = res; });
-    const dur = v.duration || 0, step = Math.max(1 / 20, dur / 160), frames = [];
+    catch(e){ if(sv.a === target){ sv.busy = ""; renderViewer(); } toast("AIを読み込めませんでした。電波のある場所で、https のページから開いてください"); return; }
+    // Work on the video on screen: iPhone decodes a visible, already loaded video far more reliably
+    // than a hidden one. Frames are copied to a small canvas (max 640px) before the AI looks at them.
+    const v = $("vid-a"); if(sv.a !== target || !v) return;
+    v.pause(); const vb = $("vid-b"); if(vb) vb.pause();
+    if(v.readyState < 2){ await Promise.race([(async () => { try{ await v.play(); }catch(e){} })(), new Promise(r => setTimeout(r, 3000))]); v.pause(); await whenReady(v, 8000); }
+    const dur = v.duration;
+    if(sv.a !== target) return;
+    if(!(dur > 0) || !isFinite(dur) || !v.videoWidth){ sv.busy = ""; renderViewer(); toast("動画を読み込めなかったため、解析できませんでした"); return; }
+    const sc = Math.min(1, 640 / Math.max(v.videoWidth, v.videoHeight));
+    const cv = document.createElement("canvas"); cv.width = Math.max(1, Math.round(v.videoWidth * sc)); cv.height = Math.max(1, Math.round(v.videoHeight * sc));
+    const g = cv.getContext("2d");
+    const step = Math.max(1 / 20, dur / 160), frames = [];
+    lmkTs += 10000;
     try{
       for(let t = 0, k = 0; t <= dur; t += step, k++){
         await seek(v, Math.min(t, dur - 0.001));
-        const r = lmk.detectForVideo(v, Math.round(t * 1000) + 1 + k);
+        if(sv.a !== target) return;
+        g.drawImage(v, 0, 0, cv.width, cv.height);
+        lmkTs += 33;
+        const r = lmk.detectForVideo(cv, lmkTs);
         const lm = r && r.landmarks && r.landmarks[0];
         if(lm) frames.push({ t, lm: lm.map(p => [+p.x.toFixed(4), +p.y.toFixed(4), +(p.visibility || 0).toFixed(2)]) });
         if(k % 5 === 0){ sv.busy = `解析中… ${Math.min(100, Math.round(t / dur * 100))}%`; renderViewer(); }
-        if(sv.a !== target) return;
       }
-    }catch(e){ sv.busy = ""; renderViewer(); toast("解析の途中で止まりました。短い動画で試してください"); return; }
+    }catch(e){ if(sv.a === target){ sv.busy = ""; renderViewer(); toast("解析の途中で止まりました。短い動画で試してください"); } return; }
     const an = summarize(frames, v.videoWidth || 1, v.videoHeight || 1, target.v.view);
     target.v.analysis = an; idb.put(target.v).catch(() => {});
-    sv.busy = ""; renderViewer();
+    sv.busy = "";
+    await seek(v, an.ok ? an.address : 0);
+    if(sv.a !== target) return;
+    renderViewer();
     toast(an.ok ? "解析しました" : "体が見つからないコマが多く、うまく解析できませんでした");
   }
   // Find address / top / impact from the hands' height, then measure tempo, head movement and posture.
@@ -1592,7 +2097,7 @@ h3.sub{margin:0;font-size:14px}
     const n1 = v => avg ? v.toFixed(1) : v;
     const rows = [
       { c: "var(--amber)", k: "罰打", v: L.P, d: `OB ${n1(L.ob)}回（1回で2打）・池など ${n1(L.pen)}回` },
-      { c: "var(--graphite)", k: "グリーンまで", v: L.A, d: `パーオンの打数（パー−2）より多くかかった分` },
+      { c: "var(--ink)", k: "グリーンまで", v: L.A, d: `パーオンの打数（パー−2）より多くかかった分` },
       { c: "var(--green)", k: "パット", v: L.U, d: `${n1(L.putts)}パット（1ホール2パットが基準）` }
     ];
     const pos = rows.map(x => Math.max(0, x.v));
@@ -1618,47 +2123,6 @@ h3.sub{margin:0;font-size:14px}
       : k[0] === "A" ? "いちばん大きいのは、グリーンに乗るまでの打数です。無理に乗せにいかず、次が打ちやすい場所に運ぶと大叩きが減ります。"
       : "いちばん大きいのはパットです。3パットを減らすには、長いパットを2パットで収める距離感の練習が近道です。";
   }
-
-  // ================= round recap =================
-  function recapHtml(r){
-    const t = totals(r), L = lossSum(r), missing = 18 - t.n, full = !missing;
-    const prev = Object.values(rounds).filter(x => x.id !== r.id && x.holes.every(played)).map(x => totals(x).s);
-    const best = prev.length ? Math.min(...prev) : null, avg = prev.length ? prev.reduce((a, b) => a + b, 0) / prev.length : null;
-    const gap = r.goal && full ? t.s - r.goal : null;
-    const badges = [];
-    if(gap != null) badges.push(gap <= 0 ? `<span class="badge flag">${goalLabel(r.goal)} 達成</span>` : `<span class="badge miss">${goalLabel(r.goal)}まで あと${gap}打</span>`);
-    if(full && best != null && t.s < best) badges.push(`<span class="badge flag">自己ベスト更新</span>`);
-    const vs = full && avg != null ? Math.round(t.s - avg) : null;
-    const mp = myPars(r) || r.holes.map(h => h.par);
-    let bi = -1, wi = -1;
-    r.holes.forEach((h, i) => {
-      if(!played(h)) return;
-      if(bi < 0 || strokes(h) - mp[i] < strokes(r.holes[bi]) - mp[bi]) bi = i;
-      if(wi < 0 || strokes(h) - h.par > strokes(r.holes[wi]) - r.holes[wi].par) wi = i;
-    });
-    const why = h => h.ob ? `OB ${h.ob}回` : h.putts >= 3 ? `${h.putts}パット` : h.pen ? `池など ${h.pen}回` : `${h.on}オン${h.putts}パット`;
-    const hb = bi >= 0 ? r.holes[bi] : null, hw = wi >= 0 ? r.holes[wi] : null;
-    const wf = whatIfHtml(L, gap || 0, false);
-    return `<section class="panel">
-        <div class="fhead"><span>ラウンド終了</span><span>${esc(r.course || fmtDate(r.date))}</span></div>
-        <div class="bigtotal"><b>${t.s}</b><span class="${t.diff < 0 ? "under" : ""}">${diffStr(t.diff)}</span></div>
-        ${badges.length ? `<div class="badges">${badges.join("")}</div>` : ""}
-        <div class="stats"><span>パット<b>${t.pt}</b></span><span>OB<b>${t.ob}</b></span><span>池など<b>${t.pen}</b></span>${vs != null ? `<span>いつもより<b>${vs > 0 ? "+" + vs : vs < 0 ? "−" + -vs : "±0"}</b>打</span>` : ""}</div>
-      </section>
-      ${miniCard(r)}
-      ${missing ? `<div class="cnote warn">${missing}ホールが未入力です。スコアカードのマスをタップすると入力できます</div>` : ""}
-      ${L.n ? `<section class="panel"><h3 class="sub">パーとの差 ${diffStr(L.P + L.A + L.U)} の内訳</h3>${lossHtml(L, false)}
-        ${wf ? `<h3 class="sub">もしも</h3>${wf}` : ""}
-        ${hb && hw && bi !== wi ? `<div class="bw"><div>ベスト<b>${bi + 1}番 ${strokes(hb)}打（${scoreName(strokes(hb), hb.par)}）</b></div><div>ワースト<b>${wi + 1}番 ${strokes(hw)}打（${why(hw)}）</b></div></div>` : ""}
-      </section>` : ""}
-      ${r.transferred ? `<div class="stats"><span class="st">楽天に転記済み</span></div>` : `<button class="btn ink full" data-act="xfer">楽天ゴルフスコアへ転記する</button>`}
-      <button class="btn full" data-act="shareimg">スコアカードを画像で共有</button>
-      <button class="btn full" data-tab="card">スコアカードを見る</button>
-      <button class="btn full" data-act="newform">新しいラウンドを始める</button>
-      ${installHtml(true)}`;
-  }
-
-
 
   // ================= this hole at this course: past results and the player's own note =================
   function holeHist(r, i){
@@ -1710,7 +2174,7 @@ h3.sub{margin:0;font-size:14px}
       if(budget < parB && easier) plan += `</p><button class="btn sm" style="align-self:flex-start" data-rgoal="${easier - 1}">目標を${easier}切りにする</button><p>`;
     }
     const wf = whatIfHtml(L, 0, false);
-    return `<div class="shbox" role="dialog" aria-modal="true" aria-labelledby="hfT">
+    return `<div class="sheet shbox" role="dialog" aria-modal="true" aria-labelledby="hfT"><div class="grab"></div>
       <div class="fhead"><span id="hfT">前半おつかれさまでした</span><span>${r.start === 10 ? "IN" : "OUT"}</span></div>
       <div class="bigtotal sm"><b>${s}</b><span class="${s - par < 0 ? "under" : ""}">${diffStr(s - par)}</span></div>
       ${badge ? `<div class="badges">${badge}</div>` : ""}
@@ -1727,11 +2191,7 @@ h3.sub{margin:0;font-size:14px}
   }
 
   // ================= notices: what's new, home screen, backups =================
-  const NEWS = 3;
-  function newsHtml(){
-    if((extra.news || 0) >= NEWS || !Object.keys(rounds).length) return "";
-    return `<div class="info"><b>新しくなりました</b><p>目標スコア（100切りなど）をホールごとの目標打数に割り振り、ペースと予想を表示／ホールアウト忘れの確認／前半の振り返りと後半の作戦／パーとの差の内訳と「もしも」／ホールごとの過去の成績とメモ／高低差とおすすめクラブ、地図にグリーンがあるコースは手前・奥の距離／スコアカードの画像共有／ホーム画面に追加すると圏外でも起動</p><button class="linkish" style="align-self:flex-start;padding:0" data-act="newsok">閉じる</button></div>`;
-  }
+  const NEWS = 4;
   const isStandalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
   const inArtifact = () => !!(window.claude && window.claude.use);
   const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -1891,17 +2351,17 @@ h3.sub{margin:0;font-size:14px}
   async function fontsReady(text){
     if(!(document.fonts && document.fonts.load)) return;
     const all = Promise.all([
-      document.fonts.load('900 120px "Sofia Sans Extra Condensed"', "0123456789+-±"),
-      document.fonts.load('800 60px "Sofia Sans Extra Condensed"', "0123456789+-±OUTINH"),
-      document.fonts.load('700 40px "BIZ UDPGothic"', text),
-      document.fonts.load('400 40px "BIZ UDPGothic"', text)
+      document.fonts.load('900 120px "Bitter"', "0123456789+-±"),
+      document.fonts.load('800 60px "Bitter"', "0123456789+-±"),
+      document.fonts.load('700 40px "Bitter"', "0123456789")
     ]).catch(() => {});
     await Promise.race([all, new Promise(res => setTimeout(res, 2500))]);
   }
   async function cardImage(r){
     const t = totals(r), W = 1080, H = 1350, X = 60, CW = W - 2 * X;
-    const NUM = '"Sofia Sans Extra Condensed","Arial Narrow",sans-serif', JP = '"BIZ UDPGothic","Hiragino Sans","Yu Gothic",sans-serif';
-    const C = { paper: "#FFFFFF", ground: "#ECEEE7", ink: "#1E1F1B", muted: "#686B61", rule: "#CDD0C6", flag: "#F5C400", under: "#D2362B", amber: "#9A5B00", amberSoft: "#F7E9C8" };
+    const NUM = '"Bitter","Rockwell",Georgia,serif', JP = '-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Noto Sans CJK JP",sans-serif';
+    const C = { paper: "#FFFFFF", ground: "#EEF2EE", ink: "#0F1A14", muted: "#59655D", rule: "#D3DBD4", fill: "#E2E8E2", flag: "#FFC700", under: "#D2372B", amber: "#9E5A00", amberSoft: "#FBEED0" };
+    const rrect = (x, y, w, h, rad) => { g.beginPath(); if(g.roundRect) g.roundRect(x, y, w, h, rad); else g.rect(x, y, w, h); };
     const title = r.course || "ラウンド", meta = fmtDate(r.date) + (r.start === 10 ? "　INスタート" : "　OUTスタート");
     const full = t.n === 18, gap = r.goal && full ? t.s - r.goal : null;
     const prev = Object.values(rounds).filter(x => x.id !== r.id && x.holes.every(played)).map(x => totals(x).s);
@@ -1920,9 +2380,9 @@ h3.sub{margin:0;font-size:14px}
     g.fillStyle = C.ink; g.font = `700 50px ${JP}`; g.fillText(fit(title, CW - 70), X + 70, 108);
     g.fillStyle = C.muted; g.font = `400 30px ${JP}`; g.fillText(meta, X + 70, 152);
     // big total
-    g.fillStyle = C.ink; g.font = `900 300px ${NUM}`; g.fillText(String(t.s), X - 8, 470);
+    g.fillStyle = C.ink; g.font = `900 270px ${NUM}`; g.fillText(String(t.s), X - 6, 462);
     const tw = g.measureText(String(t.s)).width;
-    g.fillStyle = t.diff < 0 ? C.under : C.muted; g.font = `800 110px ${NUM}`; g.fillText(diffStr(t.diff), X + tw + 18, 470);
+    g.fillStyle = t.diff < 0 ? C.under : C.muted; g.font = `800 96px ${NUM}`; g.fillText(diffStr(t.diff), X + tw + 16, 462);
     if(!full){ g.fillStyle = C.muted; g.font = `400 30px ${JP}`; g.fillText(`入力済み ${t.n}/18ホール`, X + tw + 22, 360); }
     // badges
     let bx = X;
@@ -1943,6 +2403,7 @@ h3.sub{margin:0;font-size:14px}
       else if(d === 1) square(28); else if(d >= 2){ square(28); square(35); }
     };
     const block = (y, a, b, label) => {
+      g.save(); rrect(X, y, CW, BH, 26); g.clip();
       g.fillStyle = C.paper; g.fillRect(X, y, CW, BH);
       g.fillStyle = C.ink; g.fillRect(X, y, CW, RH[0]);
       let yy = y;
@@ -1965,15 +2426,15 @@ h3.sub{margin:0;font-size:14px}
         }
       }
       const sx = X + LW + 9 * COL, tt = totals(r, a, b);
-      g.fillStyle = C.ground; g.fillRect(sx, y + RH[0], SW, BH - RH[0]);
-      g.fillStyle = C.ink; g.fillRect(sx - 2, y, 4, BH);
+      g.fillStyle = C.fill; g.fillRect(sx, y + RH[0], SW, BH - RH[0]);
+      g.fillStyle = C.rule; g.fillRect(sx - 1, y + RH[0], 2, BH - RH[0]);
       g.fillStyle = C.paper; g.font = `700 26px ${JP}`; g.textAlign = "center"; g.fillText(label, sx + SW / 2, y + RH[0] / 2);
       g.fillStyle = C.muted; g.font = `700 34px ${NUM}`; g.fillText(String(parSum(r, a, b)), sx + SW / 2, y + RH[0] + RH[1] / 2 + 2);
       if(tt.n){
         g.fillStyle = C.ink; g.font = `900 60px ${NUM}`; g.fillText(String(tt.s), sx + SW / 2, y + RH[0] + RH[1] + RH[2] / 2 + 4);
         g.font = `800 36px ${NUM}`; g.fillText(String(tt.pt), sx + SW / 2, y + RH[0] + RH[1] + RH[2] + RH[3] / 2 + 2);
       }
-      g.strokeStyle = C.ink; g.lineWidth = 4; g.strokeRect(X + 2, y + 2, CW - 4, BH - 4);
+      g.restore();
     };
     block(626, 0, 9, "OUT"); block(626 + BH + 26, 9, 18, "IN");
     // stats line
@@ -1998,7 +2459,7 @@ h3.sub{margin:0;font-size:14px}
     shareFile = new File([blob], `golf-score-${r.date}.png`, { type: "image/png" });
     let can = false; try{ can = !!(navigator.canShare && navigator.canShare({ files: [shareFile] })); }catch(e){}
     const el = $("shv"); el.hidden = false;
-    el.innerHTML = `<div class="shbox" role="dialog" aria-modal="true" aria-label="スコアカードの画像">
+    el.innerHTML = `<div class="sheet shbox" role="dialog" aria-modal="true" aria-label="スコアカードの画像"><div class="grab"></div>
       <img src="${URL.createObjectURL(blob)}" alt="スコアカードの画像">
       ${can ? `<button class="btn ink full" data-act="sharego">LINEなどに送る・写真に保存</button>` : `<p class="note">画像を長押しすると、写真に保存できます。</p>`}
       <div class="grow"><button class="btn" style="flex:1" data-act="sharesave">ファイルに保存</button><button class="btn" style="flex:1" data-act="shareclose">閉じる</button></div>
@@ -2044,10 +2505,13 @@ h3.sub{margin:0;font-size:14px}
         : e.before == null ? `<span>練習を始める前の記録が少なく、比べられません</span>` : `<span>練習を始めてからのラウンドを記録すると、ここで比べられます</span>`}</div>`;
   }
 
-  if(/[?&]test=1/.test(location.search)) window.__golf = { myPars, paceOf, lossOf, lossSum, stats, suggestClub, elevAt, cardImage, practiceEffect, frontBack, centroid, rounds: () => rounds, extra: () => extra, geo: () => geo };
+  if(/[?&]test=1/.test(location.search)) window.__golf = { myPars, paceOf, lossOf, lossSum, stats, suggestClub, elevAt, cardImage, practiceEffect, frontBack, centroid, rounds: () => rounds, extra: () => extra, geo: () => geo,
+    videoType, setPart: n => { PART = n; }, idbWait: IDBW, videos: () => videos };
 
   loadLocal();
   if(!curId || !rounds[curId]) curId = pickCurrent();
+  { const lv = liveOf(); if(lv && Date.now() - (lv.updatedAt || 0) < 12 * 3600000){ curId = lv.id; roundMode = true; } }
+  if(!roundMode && (extra.news || 0) < NEWS && Object.keys(rounds).length) info = "news";
   render();
   setSync("local");
   connect();
